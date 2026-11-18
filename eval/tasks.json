@@ -1,0 +1,98 @@
+[
+ {
+  "id": "recolour-car",
+  "mode": "edit",
+  "image": "cars.jpg",
+  "request": "Make the brown car on the right a deep racing green. Keep everything else as it is."
+ },
+ {
+  "id": "remove-tents",
+  "mode": "edit",
+  "image": "camp.jpg",
+  "request": "Remove the two yellow tents in the foreground, with their guy lines, so the camp looks like untouched snow."
+ },
+ {
+  "id": "remove-car",
+  "mode": "edit",
+  "image": "cars.jpg",
+  "request": "Remove the pale blue car on the left, so the garage door, wall and paving behind it are whole."
+ },
+ {
+  "id": "add-steam",
+  "mode": "edit",
+  "image": "mug.jpg",
+  "request": "Add steam rising from the mug, as from a hot drink."
+ },
+ {
+  "id": "add-boat",
+  "mode": "edit",
+  "image": "fjord.jpg",
+  "request": "Add a small white sailing boat on the water in the middle distance."
+ },
+ {
+  "id": "add-collar",
+  "mode": "edit",
+  "image": "puppy.jpg",
+  "request": "Give the puppy a red leather collar with a small brass tag."
+ },
+ {
+  "id": "tone-dusk",
+  "mode": "edit",
+  "image": "fjord.jpg",
+  "request": "Make it late evening: low warm light from the left, long shadows, a deeper sky."
+ },
+ {
+  "id": "restyle-jellyfish",
+  "mode": "edit",
+  "image": "jellyfish.jpg",
+  "request": "Turn the jellyfish violet with pale pink tentacles; the water stays as it is."
+ },
+ {
+  "id": "replace-mug",
+  "mode": "edit",
+  "image": "mug.jpg",
+  "request": "Replace the mug with a small cactus in a terracotta pot, standing in the same place."
+ },
+ {
+  "id": "wings-puppy",
+  "mode": "edit",
+  "image": "puppy.jpg",
+  "request": "Give the puppy a pair of small white feathered wings on its back."
+ },
+ {
+  "id": "replace-car",
+  "mode": "edit",
+  "image": "cars.jpg",
+  "request": "Replace the pale blue car on the left with a red vintage tractor."
+ },
+ {
+  "id": "draw-heron",
+  "mode": "draw",
+  "size": "1400x1000",
+  "request": "A heron standing in reeds at dawn, in pen and ink."
+ },
+ {
+  "id": "draw-lighthouse",
+  "mode": "draw",
+  "size": "1400x1000",
+  "request": "A lighthouse on a rocky headland in a storm, painted in gouache."
+ },
+ {
+  "id": "study-cars",
+  "mode": "draw",
+  "size": "1500x1000",
+  "ref": "cars.jpg",
+  "request": "Paint a study of this picture in oils: the same composition, loosely and confidently painted."
+ },
+ {
+  "id": "few-words-fox",
+  "mode": "draw",
+  "request": "a fox in snow"
+ },
+ {
+  "id": "sketch-watercolour",
+  "mode": "draw",
+  "ref": "sketch-mug.png",
+  "request": "Finish this sketch as a watercolour."
+ }
+]

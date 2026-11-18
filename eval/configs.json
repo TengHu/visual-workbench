@@ -1,0 +1,7 @@
+{
+  "base": [],
+  "no-critic": ["--critic", "none"],
+  "no-review": ["--reviewer", "off"],
+  "no-sam": ["--no-sam"],
+  "look-only": ["--reference", "look"]
+}

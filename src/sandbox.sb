@@ -1,0 +1,35 @@
+;; macOS sandbox profile for the Python session that runs the model's code (worker.py). session.py fills in:
+;;   HOME      the user's home folder
+;;   WORK_DIR  this run's work folder: the only place the session can write, and the only part of the home folder
+;;             whose contents it can read
+;;   VENV_DIR, SRC_DIR, MODELS_DIR, PY_BASE   the Python environment, this program's own code, the downloaded
+;;             model weights and the Python installation: readable, never writable
+;;
+;; Everything else under the home folder (other runs, other projects, the repo's .env, ~/.ssh, ~/Library, ...) can
+;; be neither read nor written, by the session or by anything it starts. The rest of the system (system libraries,
+;; fonts, Chrome) stays readable and temporary folders writable, as programs need.
+;;
+;; There is no network at all: the model is called by the harness, outside the sandbox, and editing a picture
+;; needs none. So code the model writes can neither download anything nor send the picture anywhere.
+;;
+;; Rules later in the file take precedence over earlier ones.
+
+(version 1)
+(allow default)
+
+(deny network*)
+;; Chrome's helper processes talk to each other over local sockets inside its own profile folder.
+(allow network* (local unix-socket))
+(allow network* (remote unix-socket))
+
+(deny file-read* file-write* (subpath (param "HOME")))
+;; Looking up a path's existence and attributes (stat), which programs need to work out where they are.
+;; This does not allow listing a folder or opening a file.
+(allow file-read-metadata (subpath (param "HOME")))
+
+(allow file-read* (subpath (param "VENV_DIR")))
+(allow file-read* (subpath (param "SRC_DIR")))
+(allow file-read* (subpath (param "MODELS_DIR")))
+(allow file-read* (subpath (param "PY_BASE")))
+
+(allow file-read* file-write* (subpath (param "WORK_DIR")))
