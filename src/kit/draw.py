@@ -51,7 +51,7 @@ def render_html(html, width, height, wait_ms=0):
     The page is `width` x `height` CSS pixels with a transparent background: whatever the page does not paint stays
     transparent, so the result drops straight into place() or blend(). Everything must be inline: there is no
     network and no external file. Draw synchronously, or set wait_ms to let scripts and timers finish.
-    This is the richest way to make new content: SVG filters and gradients, canvas pixel work, shaders."""
+    Anything a browser can draw is available: SVG filters and gradients, canvas pixel work, WebGL shaders."""
     exe = next((p for p in _CHROME if os.path.exists(p)), None) or shutil.which("chromium") or shutil.which("google-chrome")
     if not exe:
         raise RuntimeError("render_html needs Google Chrome, which is not installed here; draw with canvas() instead")
@@ -122,7 +122,7 @@ def _inflate(mask):
 
 def _light_and_shade(base, tone, contrast=0.5, shade=None, lit=None):
     """Oklab colours between a thing's colour in the light (tone 1) and in its shadow (tone 0). The shadow is the
-    colour darker and a little richer, never grey; or, given a shadow colour (and the lit colour it goes with), the
+    colour darker and a little more saturated; or, given a shadow colour (and the lit colour it goes with), the
     same shift as from that lit colour to that shadow colour. Shared by form() and Sculpture.render()."""
     lab_lit = rgb2oklab(np.asarray(base, np.float32))
     lab_shade = lab_lit.copy()
@@ -147,25 +147,23 @@ def _shine(lab, spec):
 
 def form(mask, color, light=(-0.6, -0.7), contrast=0.5, roundness=1.0, shade=None, highlight=0.0, reflected=0.15):
     """Give a flat shape volume: the shape filled with `color` and shaded as a rounded form under one light.
-    Returns a layer (H, W, 4). This is the step between a flat silhouette and something that reads as solid:
-    an arm, a torso, a fold of cloth, a fruit, a cloud, a rock.
+    Returns a layer (H, W, 4).
 
     mask       the shape. Its outline is where the form turns away; its middle is nearest to you. A long shape
-               becomes a cylinder, a round one a dome. Build a complicated thing from several forms, one per
-               part (upper arm, forearm, hand), each on its own layer, nearer parts over farther ones.
+               becomes a cylinder, a round one a dome. Several forms, each on its own layer, can be stacked
+               nearer over farther.
     color      the colour in the light: '#rrggbb', or a picture (H, W, 3) to shade a pattern or a drawn surface.
     light      the direction toward the light, (dx, dy) (dy negative = from above; the same convention as
                Sculpture.render, which adds a z), or the dict that light_on() measured on the photograph or the reference, which
                also sets contrast and the colours of the lit and shadow sides.
     contrast   0..1: how dark the shadow side is (soft overcast light under 0.25, hard sun over 0.6).
     roundness  how strongly the form turns: 0 flat, 1 a full round, above 1 a sharper turn.
-    shade      the colour of the shadow side; default: the lit colour darker and a little more saturated (never
-               grey). highlight (0..1) adds a shine facing the light; reflected (0..1) lifts the far rim of the
+    shade      the colour of the shadow side; default: the lit colour darker and a little more saturated.
+               highlight (0..1) adds a shine facing the light; reflected (0..1) lifts the far rim of the
                shadow side, as light bounced back from the surroundings does.
-    A shiny thing (wet fur, metal, glass, an eye) gets its shine from `highlight`, not from lines drawn on it.
-    The form turns at the mask's outline even when the mask is feathered: for a soft glow or a patch of sheen
-    with no form of its own, blend a colour through a feathered mask instead.
-    Put it on the stack (stack.put("arm", form(m, "#c98f6b"))) or blend it in; then paint() over the result."""
+    The form turns at the mask's outline even when the mask is feathered; a colour blended through a feathered
+    mask gives a soft patch with no turn. The layer goes on the stack (stack.put("arm", form(m, "#c98f6b"))) or
+    into blend()."""
     m = np.clip(np.asarray(mask, np.float32), 0, 1)
     if m.ndim != 2:
         raise ValueError("form: the mask must be (H, W)")
@@ -204,7 +202,7 @@ def shadow(mask, offset=(0, 0), blur=10.0, opacity=0.5, squash=1.0):
     blur     softness in pixels: small right under an object (contact shadow), larger the further it falls.
     squash   under 1 flattens the shadow vertically about the mask's bottom edge, as on a ground plane.
     Apply it with:  img = blend(img, adjust(img, exposure=-1.5), shadow_mask)   or multiply by a shadow colour.
-    A thing standing on a surface needs a tight dark contact shadow where it touches as well as the soft cast one."""
+    Two calls with different blur and offset give a tight shadow and a wider, softer one."""
     m = np.asarray(mask, np.float32)
     if m.ndim == 3:
         m = m[..., 3]

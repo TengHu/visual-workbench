@@ -8,23 +8,20 @@ from __future__ import annotations
 import json
 import re
 
-SYSTEM = """You review a picture. You are shown a request, the plate (a blank sheet or the original picture, and any references that came with the request), and the result, whole and in check views (tones only, mirrored, close up), with some measurements. You did not make it and have not seen how it was made.
+SYSTEM = """You review a picture against a request. You are shown the request, the plate (the picture that came with the request, when there was one), any references that came with the request, and the result: whole, in close-up views of the areas that changed, and with some measurements. You did not make it and have not seen how it was made.
 
-Report faults that are visible in the pictures. Check, in this order:
-1. The request: is each part of it done, as a careful person would have meant it? For a study or copy of a reference: the same composition, proportions, light and colour as the reference.
-2. Anything changed that the request did not ask for.
-3. Drawing: proportions, anatomy, perspective, symmetry (use the mirrored view), things that float or tilt. Shapes that are placeholders (a tube for an arm, an oval for a head) instead of the thing drawn.
-4. Form and light: every solid thing must turn from light into shade. Flat, cut-out shapes with no modelling are a major fault unless a flat style was asked for. Does it read in the tones view; is the light consistent; is there a focal point?
-5. Surface and edges: speckle or confetti (scattered dabs that model nothing), marks that are mechanical, scratchy or all one size, features that look pasted on because they are hard and clean on a rough surface, glows and halos, bare or unfinished passages; cut-out or fringed edges, a ghost of something removed, a patch smoother or noisier or sharper or blurrier than its surroundings, wrong light direction or a missing shadow or reflection.
-6. The sheet: empty bands or filler at the sides, a subject too small or cut off, a format that does not suit the subject.
+Judge the result only against the request. Check:
+1. The request: list its parts as it states them. For each, is it done in the result? Where the request leaves something open, do not supply a preference of your own.
+2. Changes the request did not ask for: anything different from the plate that no part of the request accounts for.
+3. Visible defects in carrying out the request: places where the result shows something the request did not ask for, such as an unintended seam, fringe, gap, smear, leftover of something removed, or a part that is missing or broken off.
 
-Report only what you can actually see. Do not invent faults to seem thorough, and do not excuse real ones. Say where each fault is in plain words (for example "left edge of the bonnet, just under the mirror")."""
+Report only what you can see in the pictures. Do not report matters of style or taste that the request does not address. Say where each fault is in plain words (for example "left edge of the bonnet, just under the mirror")."""
 
 FORMAT = """Answer with one JSON object and nothing else:
 {"request": [{"part": "<one part of the request>", "done": true or false, "note": "<why not, if not>"}],
- "faults": [{"where": "<place in the picture>", "what": "<the fault>", "severity": "major" or "minor"}],
+ "faults": [{"where": "<place in the picture>", "what": "<what is there, and which part of the request it concerns>", "severity": "major" or "minor"}],
  "verdict": "deliver" or "fix"}
-"deliver" means you would let it go out as it is: every part of the request done and no major fault. List at most 8 faults, worst first."""
+"deliver" means you would let it go out as it is: every part of the request done and no major fault. A fault is "major" when it leaves a part of the request undone or contradicted. List at most 8 faults, major ones first."""
 
 
 def _json(text: str) -> dict | None:
@@ -37,7 +34,7 @@ def _json(text: str) -> dict | None:
         return None
 
 
-def review(model, *, mode: str, request: str, pictures: list[tuple[str, str]], numbers: str = "", effort: str = "medium") -> tuple[dict, dict]:
+def review(model, *, request: str, pictures: list[tuple[str, str]], numbers: str = "", effort: str = "medium") -> tuple[dict, dict]:
     """Ask for a review. pictures: (caption, file) in the order to show them. Returns (review, usage)."""
     parts = [{"type": "text", "text": f"# The request\n\n{request}"}]
     for caption, file in pictures:
@@ -72,13 +69,13 @@ def as_text(r: dict) -> str:
     return "\n".join(lines)
 
 
-def choose(model, *, mode: str, request: str, original: str | None, a: str, b: str, effort: str = "medium") -> tuple[str, str, dict]:
+def choose(model, *, request: str, original: str | None, a: str, b: str, effort: str = "medium") -> tuple[str, str, dict]:
     """Which of two results is better? Returns ('A' | 'B' | 'tie', reason, usage). The caller shuffles A and B."""
     parts = [{"type": "text", "text": f"# The request\n\n{request}"}]
     if original:
-        parts += [{"type": "text", "text": "The original:"}, {"type": "image", "file": original}]
+        parts += [{"type": "text", "text": "The plate:"}, {"type": "image", "file": original}]
     parts += [{"type": "text", "text": "Result A:"}, {"type": "image", "file": a}, {"type": "text", "text": "Result B:"}, {"type": "image", "file": b}]
-    parts.append({"type": "text", "text": 'Which result is better, judged as described? Answer with one JSON object and nothing else: {"better": "A" or "B" or "tie", "reason": "<one sentence>"}'})
+    parts.append({"type": "text", "text": 'Which result carries out the request better, judged as described? Answer with one JSON object and nothing else: {"better": "A" or "B" or "tie", "reason": "<one sentence>"}'})
     reply = model.send([{"role": "system", "content": SYSTEM}, {"role": "user", "content": parts}], [], effort, 4000)
     j = _json(reply.text) or {}
     return (j.get("better") if j.get("better") in ("A", "B", "tie") else "tie"), str(j.get("reason", "")), reply.usage

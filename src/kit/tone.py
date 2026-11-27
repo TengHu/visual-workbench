@@ -19,7 +19,7 @@ def recolor(img, color, mask=None, lightness=1.0, keep_highlights=True):
                picture is treated as the surface.
     lightness  0 keeps the surface exactly as light or dark as it was and changes only hue and saturation;
                1 also brings it to the new colour's lightness. Going from very dark to light (black to white)
-               flattens shading: use about 0.6 and repair contrast with curves().
+               flattens shading; values below 1 keep more of it.
     Shading is carried over multiplicatively: a fold that was 30% darker than the surface's typical tone stays 30%
     darker in the new colour. Bright colourless highlights are kept as highlights."""
     a = np.asarray(img, np.float32)[..., :3]

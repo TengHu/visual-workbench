@@ -27,50 +27,45 @@ COMPACT_AT = 160_000  # input tokens above which the oldest rounds are replaced 
 KEEP_ROUNDS = 2
 PAPER = (246, 242, 233)
 
-REVIEW_CODE = {
-    "edit": r"""
+# What the harness shows itself and the reviewer of a result: the result whole, its changed areas close up (beside
+# the plate when there is one), and measurements. {plate} is whether the plate is a picture that came with the request.
+REVIEW_CODE = r"""
 _r = load({file!r})
+_changed = None
 if _r.shape != orig.shape:
-    print(f"The file is {{_r.shape[1]}}x{{_r.shape[0]}}; the original is {{W}}x{{H}}.")
+    print(f"The file is {{_r.shape[1]}}x{{_r.shape[0]}}; the plate is {{W}}x{{H}}.")
     show(_r, "the result, whole")
 else:
     _c = changes(orig, _r)
-    edit_report(orig, _r)
+    _changed = float(_c["changed"])
+    if {plate!r} and _changed > 0:
+        edit_report(orig, _r)
     show(_r, "the result, whole")
     for _i, (_x0, _y0, _x1, _y1) in enumerate([a for a in _c["areas"] if a][:3]):
         _pad = max(24, int(0.25 * max(_x1 - _x0, _y1 - _y0)))
-        compare(orig, _r, f"changed area {{_i + 1}}: original | result", box=(max(0, _x0 - _pad), max(0, _y0 - _pad), min(W, _x1 + _pad), min(H, _y1 + _pad)))
-    if _c["box"]:
-        show(change_map(orig, _r), "where pixels changed (black = untouched)")
-import json as _json
-_json.dump({{"size_ok": bool(_r.shape == orig.shape), "changed": float(changes(orig, _r, quiet=True)["changed"]) if _r.shape == orig.shape else None}}, open("gate.json", "w"))
-""",
-    "draw": r"""
-_r = load({file!r})
-_d = drawing_report(_r)
-import json as _json
-_json.dump({{"size_ok": bool(_r.shape == orig.shape), "flat": _d["flat"], "bare": _d["bare"], "range": _d["lightest"] - _d["darkest"]}}, open("gate.json", "w"))
-show(_r, "the picture, whole")
-show(tones(_r, 3), "tones only (three steps of light and dark)")
-show(mirror(_r), "mirrored")
-_h, _w = _r.shape[:2]
-_e = np.abs(cv2.Laplacian(cv2.GaussianBlur(_r.mean(-1), (0, 0), 2), cv2.CV_32F))
-_s = cv2.blur(_e, (max(8, _w // 3), max(8, _h // 3)))
-_cy, _cx = np.unravel_index(int(_s.argmax()), _s.shape)
-show(_r, "the busiest part, close up", box=(max(0, _cx - _w // 5), max(0, _cy - _h // 5), min(_w, _cx + _w // 5), min(_h, _cy + _h // 5)))
-_qy, _qx = np.unravel_index(int(_s[_h // 6:_h - _h // 6, _w // 6:_w - _w // 6].argmin()), (_h - 2 * (_h // 6), _w - 2 * (_w // 6)))
-_qy, _qx = _qy + _h // 6, _qx + _w // 6
-show(_r, "the quietest part, close up", box=(max(0, _qx - _w // 6), max(0, _qy - _h // 6), min(_w, _qx + _w // 6), min(_h, _qy + _h // 6)))
+        _box = (max(0, _x0 - _pad), max(0, _y0 - _pad), min(W, _x1 + _pad), min(H, _y1 + _pad))
+        if {plate!r}:
+            compare(orig, _r, f"changed area {{_i + 1}}: plate | result", box=_box, labels=("plate", "result"))
+        else:
+            show(_r, f"changed area {{_i + 1}}", box=_box)
+    if {plate!r} and _c["box"]:
+        show(change_map(orig, _r), "where pixels changed (black = unchanged)")
+    _h, _w = _r.shape[:2]
+    _e = np.abs(cv2.Laplacian(cv2.GaussianBlur(_r.mean(-1), (0, 0), 2), cv2.CV_32F))
+    _s = cv2.blur(_e, (max(8, _w // 3), max(8, _h // 3)))
+    _cy, _cx = np.unravel_index(int(_s.argmax()), _s.shape)
+    show(_r, "the part with the most edges, close up", box=(max(0, _cx - _w // 5), max(0, _cy - _h // 5), min(_w, _cx + _w // 5), min(_h, _cy + _h // 5)))
 if refs and refs[0].level != "look":
     refs[0].check(_r)
-""",
-}
+import json as _json
+_json.dump({{"size_ok": bool(_r.shape == orig.shape), "changed": _changed}}, open("gate.json", "w"))
+"""
 
-SELF_REVIEW = """Before this is delivered: above is the result with check views and measurements.
+SELF_REVIEW = """Before this is delivered: above is the result with views and measurements. There is no independent reviewer for this run.
 
-Look at it as if someone else made it and you have to find what is wrong with it. Go through the manual's lists. Then check the request once more, word by word: is every part of it done?
+Compare the result with the request, part by part: is each part of it done? Is anything changed that the request did not ask for?
 
-If you find anything, fix it, save, and call finish again. If it truly holds up, call finish again now to deliver."""
+If something is not done, change it, save, and call finish again. Otherwise call finish again now to deliver."""
 
 
 def prepare(src: str, dest: Path, max_side: int) -> tuple[int, int, bool]:
@@ -115,7 +110,6 @@ class Run:
     def __init__(self, *, mode: str, model: OpenRouter, critic_model: OpenRouter | None, image: str | None, size: tuple[int, int], request: str, refs: list[str], ref_level: str, out: Path, rounds: int, effort: str, max_tokens: int, max_usd: float, coords: str, sam: bool, max_side: int, seconds: int, review: bool, critic_passes: int):
         self.mode, self.model, self.critic_model, self.request = mode, model, critic_model, request
         self.has_plate = image is not None
-        self.kind = "edit" if self.has_plate else "draw"   # mechanical label: is there a plate to preserve?
         self.rounds, self.effort, self.max_tokens, self.max_usd = rounds, effort, max_tokens, max_usd
         self.review, self.critic_passes, self.ref_level = review, critic_passes, ref_level
         self.dir = out
@@ -272,17 +266,17 @@ class Run:
     def _review(self, file: str, final: bool = False, sheet: dict | None = None) -> tuple[list[dict], str, bool]:
         """Views and text for a held-back finish, and whether the reviewer would let the result go."""
         self.last_reviewed = self._digest(self.work / file)
-        r = sheet or self.session.run(REVIEW_CODE[self.kind].format(file=file), private=True)
+        r = sheet or self.session.run(REVIEW_CODE.format(file=file, plate=self.has_plate), private=True)
         numbers = r["stdout"].strip()
         if self.critic_model is None:
             return r["views"], (numbers + "\n\n" if numbers else "") + SELF_REVIEW, False
         pictures = []
-        if self.kind == "edit":
-            pictures.append(("The original", str(self.dir / "original.png")))
+        if self.has_plate:
+            pictures.append(("The plate (the picture that came with the request)", str(self.dir / "original.png")))
         pictures += [(f"Reference {i + 1}", str(self.work / ".refs" / n)) for i, n in enumerate(self.refs)]
         pictures += [(v["caption"], str(self.work / v["file"])) for v in r["views"]]
         try:
-            rev, usage = critic.review(self.critic_model, mode=self.kind, request=self.request, pictures=pictures, numbers=numbers)
+            rev, usage = critic.review(self.critic_model, request=self.request, pictures=pictures, numbers=numbers)
         except ModelError as e:
             return r["views"], (numbers + "\n\n" if numbers else "") + f"(The reviewer could not be reached: {e})\n\n" + SELF_REVIEW, False
         self.spent += usage.get("usd") or 0
@@ -343,11 +337,11 @@ class Run:
                 if not final_round and not accept and self.free_holds < 4:  # the free checks run even with the reviewer off
                     # The free checks come first: how the work was done, then what a ruler can tell.
                     resub = bool(self.reviews) and self.reviews[-1].get("verdict") == "fix" and gate.digest(path) == self.last_reviewed
-                    faults, kind = gate.process(self.kind, {**self.process, "resubmitted": resub}), "process"
+                    faults, kind = gate.process({**self.process, "resubmitted": resub}), "process"
                     if not faults:
-                        sheet = self.session.run(REVIEW_CODE[self.kind].format(file=file), private=True)
+                        sheet = self.session.run(REVIEW_CODE.format(file=file, plate=self.has_plate), private=True)
                         try:
-                            faults, kind = gate.measured(self.kind, json.loads((self.work / "gate.json").read_text()), self.request), "measured"
+                            faults, kind = gate.measured(json.loads((self.work / "gate.json").read_text()), self.has_plate), "measured"
                         except (OSError, ValueError):
                             faults = []
                     if faults:
@@ -398,4 +392,4 @@ class Run:
     # -- the run's pages ---------------------------------------------------------------------------------------
 
     def write_pages(self, done: bool = False, final: Path | None = None) -> None:
-        pages.write(pages.Record(dir=self.dir, mode=self.kind, request=self.request, model_id=self.model.id, w=self.w, h=self.h, rounds=self.rounds, effort=self.effort, spent=self.spent, rows=self.rows, stages=self.stages, reviews=self.reviews, stopped=self.stopped, summary=self.summary, delivered=self.delivered, unsaved=self.unsaved, passed=self.passed, accepted=self.accepted), done, final)
+        pages.write(pages.Record(dir=self.dir, mode="edit" if self.has_plate else "draw", request=self.request, model_id=self.model.id, w=self.w, h=self.h, rounds=self.rounds, effort=self.effort, spent=self.spent, rows=self.rows, stages=self.stages, reviews=self.reviews, stopped=self.stopped, summary=self.summary, delivered=self.delivered, unsaved=self.unsaved, passed=self.passed, accepted=self.accepted), done, final)

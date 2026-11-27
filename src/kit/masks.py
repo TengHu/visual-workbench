@@ -99,11 +99,8 @@ def _curve(points, corners=(), closed=True, per=24):
 
 def curve_mask(like, points, corners=(), feather_px=0):
     """A closed shape whose outline runs smoothly through the points [(x, y), ...], in order round the shape.
-    This is how to draw an organic silhouette (an animal, a leaf, a cloud, a figure, a fold): 8 to 30 points along
-    the real outline, read off a zoomed view, more where it turns sharply. `corners` lists the indices of points
-    where the outline turns sharply instead of curving (the tip of an ear, a paw, a collar point).
-    Draw a thing as one silhouette, or as a few overlapping parts each with its own form(), never as a chain of
-    ovals and tubes."""
+    The curve passes through every point, so more points follow a more detailed outline. `corners` lists the
+    indices of points where the outline turns sharply instead of curving."""
     return poly_mask(like, _curve(points, corners, closed=True), feather_px)
 
 
@@ -267,12 +264,12 @@ def _grabcut(img, box, fg, bg):
 
 
 def select_object(img, box, fg=(), bg=(), refine=True):
-    """Select the object inside a box, following its real outline. This is how to select anything with a shape.
+    """Select the object inside a box, following its outline.
 
     box  (x0, y0, x1, y1) drawn snugly around the whole object.
     fg   points [(x, y), ...] that are on the object; bg: points that are not. Add them when the first result
          takes too much or too little, and call again.
-    Always look at the result before using it: show(overlay(img, m), box=...)."""
+    show(overlay(img, m), box=...) shows what was selected."""
     a = np.asarray(img, np.float32)
     h, w = a.shape[:2]
     x0, y0, x1, y1 = [int(round(v)) for v in box]

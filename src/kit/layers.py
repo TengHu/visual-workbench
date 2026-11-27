@@ -106,17 +106,9 @@ class Stack:
 
 
 def brief(text):
-    """Before you draw anything, say what the picture will be, in a few sentences: the subject and what it is doing,
-    the viewpoint and how the sheet is divided (where the subject sits, what is behind it), where the light comes
-    from and how hard it is, the palette (three to five colours), the medium and how finished it should look.
-
-    The request may be a few words, a sketch or a long description; the brief is where you turn it into one
-    definite picture, filling in what the request leaves open as a careful person would. Everything after is
-    judged against it: by you at every stage, and at the end. It is recorded with the run (brief.md), and a
-    drawing is not accepted without one. Call it again if you change your mind."""
+    """Record a description of the intended result, in your own words. Optional. It is kept with the run
+    (brief.md) and shown in its replay; calling it again replaces it."""
     text = str(text).strip()
-    if len(text.split()) < 12:
-        raise ValueError("brief: too short to decide a picture. Say the subject, the composition, the light, the palette and the medium.")
     _state["brief"] = text
     with open("brief.md", "w") as f:
         f.write(text + "\n")
@@ -124,9 +116,8 @@ def brief(text):
 
 
 def plan(stages):
-    """Say, before you start, which stages the work will go through, in order: plan(["construction", "big forms",
-    "line", "flat colour", "shading", "detail", "background"]). For an edit, the steps of the edit. It is recorded with
-    the run; you may call it again if the plan changes."""
+    """Record a list of steps, in order, e.g. plan(["step one", "step two"]). Optional. It is kept with the run and
+    shown in its replay; calling it again replaces it."""
     stages = [str(s) for s in stages]
     _state.setdefault("plan", [])
     _state["plan"] = stages
@@ -136,12 +127,10 @@ def plan(stages):
 
 
 def stage(name, picture, note=""):
-    """Close a stage: record the picture as it stands at the end of stage `name`, and look at it.
+    """Record the picture as it stands at the end of step `name`, and show it: stage("step one", stack.flatten()).
 
-    Call it when a stage is done and before the next begins: stage("construction", stack.flatten()). The frames make
-    the run's step-by-step replay, and each is shown to you, so this is also the moment to judge the stage: is it
-    right enough to build on? A fault in construction is cheap to fix now and expensive after colour.
-    Closing a stage of the same name again replaces its frame (the stage was redone)."""
+    The frames make the run's step-by-step replay. Optional. Recording a stage of the same name again replaces its
+    frame."""
     a = _to8(np.asarray(picture, np.float32)[..., :3])
     os.makedirs("stages", exist_ok=True)
     frames = _state.setdefault("stages", [])

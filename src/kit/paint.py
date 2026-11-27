@@ -250,7 +250,7 @@ def paint(target, onto=None, mask=None, brushes=(48, 24, 12, 6, 3), brush="round
     brush      'round' (soft, opaque), 'bristle' (streaked, like oil or acrylic), 'flat' (hard-edged, like gouache or
                cel painting), 'pencil' (grainy, thin), 'dab' (single touches, no drag).
     direction  None: strokes follow the forms (they run along edges and wrap round shaded volumes; a plain area
-               away from any edge is hatched on a slant, as a hand does it). A number: all strokes at that angle in degrees. An array
+               away from any edge is hatched on a slant). A number: all strokes at that angle in degrees. An array
                (H, W) of angles in radians: your own flow field (hair, water, fur, folds).
     threshold  how wrong the canvas must be before a stroke is laid, 0..1. Lower paints more and tighter.
     opacity    under 1 lets strokes build up like glazes. wet (0..1) drags some of the colour already on the canvas
@@ -258,17 +258,15 @@ def paint(target, onto=None, mask=None, brushes=(48, 24, 12, 6, 3), brush="round
     length     (shortest, longest) stroke in steps of one brush radius. curve (0..1): how quickly strokes may bend.
     spread     spacing of stroke starts in brush radii (1 = dense; 2 = sparse and sketchy).
     variation  0..1: how much each stroke's colour differs from the study's, as each brush load is mixed a little
-               differently (default by brush: bristle and dab 0.5, round 0.35, flat and pencil 0.2). This, with
-               the brush's streaks and `relief`, is what makes a flat area look painted: the study itself stays
-               clean. Never put noise or random colour into a study to get brushwork.
+               differently (default by brush: bristle and dab 0.5, round 0.35, flat and pencil 0.2). Noise or
+               random colour in the study is painted as it is, stroke by stroke.
     relief     0..1: how strongly the paint's thickness catches the light (default by brush: bristle 0.45, dab
                0.3, round 0.15, flat 0.06, pencil 0): thick oil or acrylic has it, gouache, watercolour and ink
                hardly do. 0 gives a perfectly matte surface.
     loose      0..1: how far strokes may spill over the study's edges. 0 keeps every edge; 0.3 is a loose sketch.
     record     a name: the canvas after each brush size is kept as a stage frame for the run's replay.
-    It prints how far the painting still is from the study and where it is furthest: paint that area again with
-    smaller brushes (`onto=` the painting, `mask=` the area) if it matters. A detailed area needs a detailed
-    study: paint() cannot add what the study does not hold, and a flat study gives a flat painting."""
+    It prints how far the painting still is from the study and where it is furthest; `onto=` the painting with
+    `mask=` an area and smaller brushes repaints just that area. paint() adds nothing the study does not hold."""
     tgt = np.ascontiguousarray(np.asarray(target, np.float32)[..., :3])
     h, w = tgt.shape[:2]
     if brush not in _KIND:
@@ -361,7 +359,7 @@ def wash(target, paper=None, mask=None, layers=4, wet=0.5, edges=0.5, granulatio
     wet          0..1: how soft and spread the washes are (0 crisp, dry brush; 1 everything wet-in-wet).
     edges        0..1: how strongly pigment gathers at the rim of each wash.
     granulation  0..1: how unevenly the pigment settles. bloom 0..1: a few cauliflower-like blooms where washes
-                 were wet. Pair it with ink lines (ink_lines, or ref.lines() as a layer) for line and wash."""
+                 were wet."""
     tgt = np.clip(np.asarray(target, np.float32)[..., :3], 0, 1)
     h, w = tgt.shape[:2]
     rng = np.random.default_rng(seed)
@@ -445,10 +443,9 @@ def ink_lines(like, paths, width=2.5, taper=0.6, smooth=True, color="#151515", o
 
     width   the line's thickness at its fullest, in pixels.
     taper   0: the same thickness from end to end; 1: swelling from a point to full width and back to a point, as a
-            brush pen or a pressed pencil does. Lines with some taper look drawn; lines with none look plotted.
+            brush pen or a pressed pencil does.
     smooth  True runs a curve through the points; False joins them straight.
-    Vary the weight by what the line is: heavier for the outer silhouette and for edges in shadow, lighter for
-    inner detail and for edges turned to the light. Break a line where the form goes soft."""
+    Each call draws its paths at one width; separate calls give separate widths."""
     a = np.asarray(like)
     h, w = a.shape[:2]
     S = 2
@@ -482,8 +479,8 @@ def hatch(tone, mask=None, spacing=5.0, length=16.0, width=1.1, levels=4, direct
     levels     how many layers of strokes the darkest tone gets; each layer crosses the one before.
     direction  'contour': strokes follow the form (they run along the tone's contours, as an engraver's do);
                'straight': all strokes of a layer are parallel, starting at `angle` degrees.
-    jitter     0..1 unevenness of position, length and angle: a little makes it look drawn by hand.
-    Lay it over line art (ink_lines) on a paper-coloured base; use a mask to hatch one object with its own settings."""
+    jitter     0..1 unevenness of position, length and angle (0: perfectly regular).
+    A mask limits it to one area, so areas can be hatched with different settings."""
     t = np.asarray(tone, np.float32)
     L = rgb2oklab(t)[..., 0] if t.ndim == 3 else np.clip(t, 0, 1)
     h, w = L.shape
