@@ -72,7 +72,7 @@ def warp(img, moves, radius, mask=None):
     moves   [((x_from, y_from), (x_to, y_to)), ...]: what is at `from` ends up at `to`.
     radius  how far around each push the picture gives way, in pixels (about the size of the feature being moved).
     mask    only pixels inside it may change (protect what must stay put).
-    Small pushes look natural; a push longer than about half the radius smears. Works on a picture or a layer."""
+    A push longer than about half the radius smears the pixels it passes. Works on a picture or a layer."""
     a = np.asarray(img, np.float32)
     h, w = a.shape[:2]
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)

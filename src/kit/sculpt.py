@@ -162,8 +162,7 @@ class Sculpture:
     """A solid thing modelled from rounded parts that melt into each other, rendered with its own light and shadow.
 
     Positions are in picture pixels: x to the right, y down, z toward you (0 is the picture plane; a part with
-    larger z is nearer). Build the thing from its masses, largest first, each part on the real structure (a chest,
-    a hip, upper and lower leg, a skull and a muzzle), and let neighbouring parts overlap so that they join:
+    larger z is nearer). Parts that overlap melt into each other:
 
         s = Sculpture(blend=0.6)
         s.ellipsoid("chest", (700, 520, 0), (150, 110, 95), "#c86a2c")
@@ -177,18 +176,16 @@ class Sculpture:
     ellipsoid(name, center, (rx, ry, rz), color)   a body mass, a head, a muscle, a cloud puff
     box(name, center, (w, h, d), color, angle, round)   a wall, a block, a step, a slab (hard-edged)
     cylinder(name, a, b, ra, rb=None, color)  a column, a round tower, a cone or spire (rb=0), a trunk
-    Build a building, a machine or furniture from boxes and cylinders; repeated details (battlements, windows,
-    planks) are a loop in your code. A window or a door is a dark box set into the wall.
     Parts can be changed and rendered again: s.parts[name] is a dict you may edit ("a" and "b": the ends or the
     centre (x, y, z); "r": the radii; "color"); s.remove(name);
     s.turn(degrees) shows it from another side; s.recolor(colour, [names]).
-    For an animal or a figure, start from quadruped() or figure(), which build one with sound proportions.
+    quadruped() and figure() return a Sculpture built from preset proportions.
     blend: how softly parts melt together, as a share of the smaller radius (0 hard joins, 1 very soft).
     soft=False on a part keeps its join hard (a claw, a beak, a hat brim).
 
     render(W, H, light, ...) returns a layer (H, W, 4): each part in its colour, turned from light into shade by
     the real form, with the shadows parts cast on each other and the darkening in creases. After a render,
-    s.mask(name) is where that part is seen, and s.ground_shadow the shadow cast on the ground (a mask). Look at the render from several sides (tilt, turn) before painting it."""
+    s.mask(name) is where that part is seen, and s.ground_shadow the shadow cast on the ground (a mask)."""
 
     def __init__(self, blend=0.5):
         self.blend = float(blend)

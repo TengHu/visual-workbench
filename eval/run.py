@@ -71,7 +71,7 @@ def compare(a):
             continue
         original = HERE / "results" / a.a / t["id"] / "original.png" if t["mode"] == "edit" else None
         flip = rnd.random() < 0.5  # the judge never knows which configuration is A
-        better, reason, usage = critic.choose(judge, mode=t["mode"], request=t["request"], original=str(original) if original else None, a=str(rb if flip else ra), b=str(ra if flip else rb))
+        better, reason, usage = critic.choose(judge, request=t["request"], original=str(original) if original else None, a=str(rb if flip else ra), b=str(ra if flip else rb))
         spent += usage.get("usd") or 0
         winner = "tie" if better == "tie" else (a.b if (better == "A") == flip else a.a)
         score[winner] += 1

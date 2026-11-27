@@ -1,7 +1,5 @@
-"""Figures: animals and people built as sculptures with sound proportions, from a few settings.
-
-Proportion is the first thing a drawing of a living thing gets wrong, and the hardest to see once wrong. These
-start you from a correct one: the masses and limbs in the right sizes and places, as named parts of a Sculpture.
+"""Figures: animals and people built as sculptures from preset proportions and a few settings, as named parts
+of a Sculpture.
 Change any part afterwards (s.parts[name]), add what the subject needs (a collar, a mane, a hat), then render.
 """
 from __future__ import annotations
@@ -37,7 +35,7 @@ def quadruped(x, ground, length, kind="fox", facing="left", head="level", walk=0
     color       the coat; under: the throat, chest and belly (None for the same as the coat); feet: the lower
                 legs (None for the coat).
     Parts: chest, belly, hip, neck, skull, muzzle, nose, ear_near, ear_far, leg_{fore,hind}_{near,far}_{upper,lower},
-    tail, tail_tip. Show it from three-quarters with s.turn(25)."""
+    tail, tail_tip. s.turn(degrees) turns it away from side on."""
     P = ANIMALS[kind] if isinstance(kind, str) else dict(kind)
     L, d = float(length), (-1.0 if facing == "left" else 1.0)
     f = lambda v: x + d * v * L  # along the body: positive toward the head
@@ -90,13 +88,13 @@ def quadruped(x, ground, length, kind="fox", facing="left", head="level", walk=0
 
 def figure(x, ground, height, facing=0.0, arms="down", stride=0.0, skin="#d9a487", top="#3d5a80", bottom="#2b2d42",
            hair="#3b2a20", shoes="#1d1d1d", blend=0.45):
-    """A standing person, front on, built on the classical proportions (7.5 heads tall). Returns a Sculpture.
+    """A standing person, front on, 7.5 heads tall. Returns a Sculpture.
 
     x, ground   where the person stands; height: their height in pixels.
     facing      degrees turned: 0 front on, 45 three-quarters, 90 side on (positive turns them to their left).
     arms        'down', 'akimbo' (hands on hips), 'raised' or 'out'. stride: 0 feet together, 1 a walking step.
     skin, top, bottom, hair, shoes: colours. Parts: head, hair, neck, chest, waist, pelvis, arm_{l,r}_{upper,lower},
-    hand_{l,r}, leg_{l,r}_{upper,lower}, foot_{l,r}. A face is drawn on afterwards, small and soft (see the manual)."""
+    hand_{l,r}, leg_{l,r}_{upper,lower}, foot_{l,r}. There is no face: the head is a plain mass."""
     h = float(height) / 7.5  # one head
     s = Sculpture(blend=blend)
     y = lambda heads: ground - heads * h  # heights in heads from the ground

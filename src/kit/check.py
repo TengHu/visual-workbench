@@ -22,13 +22,12 @@ def _delta(a, b):
 
 
 def changes(before, after, mask=None, quiet=False):
-    """Measure what an edit changed. Prints, and returns a dict with:
+    """Measure what changed between two pictures. Prints, and returns a dict with:
 
     changed  share of pixels that differ visibly (by more than 1/255)
     box      (x0, y0, x1, y1) around everything that changed, or None
     areas    boxes of the separate changed areas, largest first (up to 6)
-    outside  with a mask of where the edit was meant to be: the largest change outside it (0 means it did not leak)
-    A local edit must leave the rest of the picture exactly as it was."""
+    outside  with a mask of where changes were meant to be: the largest change outside it (0: none)"""
     d = _delta(before, after)
     ch = d > 1.0 / 255 + 1e-6
     out = {"changed": float(ch.mean()), "box": mask_box(ch.astype(np.float32)), "max": float(d.max()), "areas": []}
@@ -55,8 +54,8 @@ def changes(before, after, mask=None, quiet=False):
 
 
 def change_map(before, after, gain=4.0):
-    """A picture of where and how strongly an edit changed things (black: untouched; bright: changed), to show().
-    Faint, wide-spread grey where nothing should have changed means the edit leaked."""
+    """A picture of where and how strongly two pictures differ (black: unchanged; brighter: more changed), to
+    show(). `gain` scales the brightness, so faint changes become visible."""
     d = _delta(before, after)
     v = np.clip(d * gain, 0, 1)
     heat = cv2.applyColorMap((v * 255).astype(np.uint8), cv2.COLORMAP_INFERNO)[..., ::-1].astype(np.float32) / 255
@@ -66,7 +65,7 @@ def change_map(before, after, gain=4.0):
 
 def sharpness_level(img, mask=None):
     """How sharp a picture is in the masked area: the typical strength of its strongest edges (0 = flat or blurred).
-    Compare an added or edited area with what surrounds it at the same distance: they should be close."""
+    Measured on two areas, it says how their sharpness compares."""
     g = np.asarray(img, np.float32)[..., :3].mean(-1)
     lap = np.abs(cv2.Laplacian(cv2.GaussianBlur(g, (0, 0), 0.8), cv2.CV_32F, ksize=3))
     w = np.asarray(mask, np.float32) > 0.5 if mask is not None else np.ones(g.shape, bool)
@@ -76,9 +75,9 @@ def sharpness_level(img, mask=None):
 
 
 def edit_report(before, after, quiet=False):
-    """Numbers on an edit, comparing each changed area with the ring of untouched picture around it: how much
+    """Numbers on a change, comparing each changed area with the ring of untouched picture around it: how much
     changed, the grain inside against outside, the sharpness inside against outside, and how strongly the border of
-    the change shows. A grain or sharpness ratio far from 1, or a strong border, is an edit that can be seen."""
+    the change shows. A ratio of 1 means inside and outside agree; 0 border means no new edge along it."""
     d = _delta(before, after)
     ch = d > 1.0 / 255 + 1e-6
     out = {"changed": float(ch.mean())}
@@ -110,15 +109,11 @@ def edit_report(before, after, quiet=False):
 
 
 def drawing_report(img, paper="#f6f2e9", quiet=False):
-    """Numbers on a drawing or painting, for the faults that can be measured. Prints, and returns a dict with:
+    """Numbers on a picture's coverage and tones. Prints, and returns a dict with:
 
-    bare    share of the sheet that is still untouched paper (right for a pen drawing; a fault in a painting)
-    flat    share of the picture lying in areas of one unvarying tone, with no light and shade in them, and
-            `flat_boxes`, the largest such areas. A form drawn as a flat silhouette looks cut out of paper: give
-            it volume (form()), a gradient, or a shadow falling across it. A flat poster style is the exception.
-    tones   the darkest and lightest tones used (0 black, 1 white) and the shares of dark, middle and light. A
-            picture squeezed into the middle tones, with no real dark and no real light, looks weak.
-    It does not see drawing errors, speckle or bad taste: those take looking (squint, tones, mirror, close-ups)."""
+    bare    share of the picture that is still the colour `paper` (the blank sheet's colour)
+    flat    share of the picture lying in areas of one unvarying tone, and `flat_boxes`, the largest such areas
+    tones   the darkest and lightest tones used (0 black, 1 white) and the shares of dark, middle and light"""
     a = np.asarray(img, np.float32)[..., :3]
     H, W = a.shape[:2]
     s = min(1.0, 800.0 / max(H, W))
@@ -155,19 +150,16 @@ def drawing_report(img, paper="#f6f2e9", quiet=False):
            "darkest": float(np.percentile(Lr, 2)), "lightest": float(np.percentile(Lr, 98)),
            "dark": float((Lr < 0.4).mean()), "middle": float(((Lr >= 0.4) & (Lr < 0.7)).mean()), "light": float((Lr >= 0.7).mean())}
     if not quiet:
-        msg = f"drawing_report: {100 * out['bare']:.0f}% of the sheet is bare paper; {100 * out['flat']:.0f}% lies in flat areas with no light and shade"
+        msg = f"drawing_report: {100 * out['bare']:.0f}% of the picture is the paper colour; {100 * out['flat']:.0f}% lies in areas of one unvarying tone"
         if boxes:
             msg += " (largest: " + ", ".join(f"box {b}" for b in boxes[:3]) + ")"
         msg += f"; tones run from {out['darkest']:.2f} to {out['lightest']:.2f} (dark {100 * out['dark']:.0f}%, middle {100 * out['middle']:.0f}%, light {100 * out['light']:.0f}%)"
-        if out["lightest"] - out["darkest"] < 0.35:
-            msg += ": a narrow range, with no real " + ("dark" if out["darkest"] > 0.35 else "light")
         print(msg)
     return out
 
 
 def tones(img, levels=3):
-    """The picture reduced to `levels` flat steps of light and dark (a notan). The value check painters make: if
-    the picture does not read in three tones, no colour or detail will save it. show() the result."""
+    """The picture reduced to `levels` flat steps of lightness. show() the result."""
     L = rgb2oklab(np.asarray(img, np.float32)[..., :3])[..., 0]
     L = cv2.GaussianBlur(L, (0, 0), max(1.0, 0.004 * max(L.shape)))
     q = np.round(np.clip(L, 0, 1) * (levels - 1)) / max(1, levels - 1)
@@ -175,13 +167,11 @@ def tones(img, levels=3):
 
 
 def squint(img, amount=1.0):
-    """The picture blurred as if seen through half-closed eyes: detail gone, masses and the focal point left.
-    Look at it to judge composition and where the eye goes. show() the result."""
+    """The picture blurred so that fine detail is gone and only large masses remain. show() the result."""
     a = np.asarray(img, np.float32)[..., :3]
     return cv2.GaussianBlur(a, (0, 0), max(2.0, 0.012 * max(a.shape[:2]) * amount))
 
 
 def mirror(img):
-    """The picture flipped left to right. Errors of drawing that the eye has got used to (a leaning figure, a
-    lopsided face, uneven eyes) show at once in the mirror. show() the result."""
+    """The picture flipped left to right. show() the result."""
     return np.ascontiguousarray(np.asarray(img, np.float32)[:, ::-1])

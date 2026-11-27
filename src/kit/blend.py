@@ -17,7 +17,7 @@ def _same(a, b, what="the two pictures"):
 
 
 def blend(base, top, mask=None, opacity=1.0):
-    """Lay `top` over `base` through a mask, mixing light correctly (in linear light). The basic way to apply any edit.
+    """Lay `top` over `base` through a mask, mixing in linear light.
 
     top is a picture, or a layer whose alpha is used (times the mask, if one is given). Where the mask is 0 the
     result is exactly `base`, so an edit made this way cannot leak outside its mask."""
@@ -161,8 +161,7 @@ def match_color(img, like, mask=None, like_mask=None, strength=1.0):
     """Give `img` the colour balance and contrast of `like` (mean and spread in Oklab).
 
     The statistics are measured inside `mask` on img and inside `like_mask` on like, and the change is applied to
-    the whole of img: blend the result back through your mask. Use it so that something brought in from elsewhere
-    sits in the scene's light: measure `like` on the surroundings it must match."""
+    the whole of img: blend() the result through a mask to limit it to an area."""
     a, r = rgb2oklab(img), rgb2oklab(like)
     wa = np.asarray(mask, np.float32) > 0.5 if mask is not None else np.ones(a.shape[:2], bool)
     wr = np.asarray(like_mask, np.float32) > 0.5 if like_mask is not None else np.ones(r.shape[:2], bool)
@@ -195,7 +194,7 @@ GRAIN_FLOOR = 0.0012
 
 def grain_level(img, mask=None):
     """How much fine noise (film grain, sensor noise) a picture has in the masked area: its standard deviation, in
-    0..1 units. A clean render is near 0; a typical photo 0.004 to 0.02. Compare an edited area with its surroundings."""
+    0..1 units. A clean render is near 0; a typical photo 0.004 to 0.02."""
     nm = _noise_map(img)
     g = np.asarray(img, np.float32)[..., :3].mean(-1)
     grad = np.hypot(cv2.Sobel(g, cv2.CV_32F, 1, 0, ksize=3), cv2.Sobel(g, cv2.CV_32F, 0, 1, ksize=3))
@@ -207,8 +206,7 @@ def grain_level(img, mask=None):
 
 
 def add_grain(img, mask, like=None, like_mask=None, amount=None, size=1.0, seed=7):
-    """Give the masked area the same grain as the rest of the photo. Anything drawn, rendered, blurred or heavily
-    recoloured is cleaner than a photograph and shows as a smooth patch until this is done.
+    """Give the masked area the same grain (fine noise) as the rest of the picture.
 
     By default the grain is measured on `img` outside the mask; give like= (a picture) and like_mask= to measure it
     somewhere specific, or amount= to set the standard deviation yourself. Only what is missing is added.

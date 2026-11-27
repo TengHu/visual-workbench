@@ -40,7 +40,7 @@ def outline(img, box, fg=(), bg=(), points=160):
     """The exact outline of the thing inside a box, as `points` points [(x, y), ...] going round it.
 
     Like select_object, but returns the contour instead of a mask: use it as a guide to draw to, to build a
-    poly_mask, or to compare a drawn shape with the shape it should have."""
+    poly_mask, or to compare a drawn shape with a target shape."""
     return _contour(select_object(img, box, fg, bg, refine=False), points)
 
 
@@ -49,8 +49,8 @@ def landmarks(img, kind="pose"):
     knees, ankles ...), 'face' (named points: eyes, brows, nose, mouth, chin, cheeks) or 'hands'.
 
     Returns {name: (x, y)} in the picture's pixels ('hands': a list of 21-point lists), or {} when none is found.
-    Works on photographs and on reasonably realistic drawings; a loose sketch may give nothing. Use it on your own
-    figure to check proportions (head height against body height, eye line, shoulder width) in numbers."""
+    Works on photographs and on reasonably realistic drawings; a loose sketch may give nothing. landmark_diff()
+    compares two sets of them."""
     try:
         import mediapipe as mp
         from mediapipe.tasks import python as mpp
@@ -84,7 +84,7 @@ def landmarks(img, kind="pose"):
 
 def palette(img, mask=None, n=6):
     """The n main colours of a picture (or of its masked part): [('#rrggbb', share), ...], largest first. Printed too.
-    Use it to take a limited palette from a reference or from the surroundings of an edit, and stay inside it."""
+    """
     a = np.asarray(img, np.float32)[..., :3]
     px = a[np.asarray(mask) > 0.5] if mask is not None else a.reshape(-1, 3)
     if len(px) < n:
@@ -108,9 +108,8 @@ def light_on(img, mask):
     contrast    how much darker the shadow side is than the lit side, 0..1 (soft overcast light is under 0.2,
                 hard sun over 0.5).
     lit, shade  the typical colour of its lit and shadow parts ('#rrggbb'): their difference is the colour of the light.
-    Measure it on something near where new content will go, with a simple rounded form and one plain colour
-    (a face, an arm, a ball, a wall), and light what you add the same way. On a patterned, shiny, nearly black or
-    nearly white thing it misleads."""
+    It is reliable on a simple rounded form of one plain colour (a face, an arm, a ball, a wall); on a patterned,
+    shiny, nearly black or nearly white thing it misleads. The dict can be passed as `light=` to form()."""
     a = np.asarray(img, np.float32)[..., :3]
     m = np.asarray(mask, np.float32) > 0.5
     if m.sum() < 200:
@@ -137,9 +136,9 @@ def light_on(img, mask):
 
 
 def shape_diff(mask, ref_mask, quiet=False):
-    """Compare a shape with the shape it should have (two masks of the same picture size). Prints and returns:
+    """Compare a shape with a target shape (two masks of the same picture size). Prints and returns:
     overlap (1 = identical), how far the centre is off (dx, dy in pixels, + is right/down), and how much too wide and
-    too tall it is (1.10 = 10% too large). Fix the largest error first, then measure again."""
+    too tall it is (1.10 = 10% larger than the target)."""
     a, b = np.asarray(mask) > 0.5, np.asarray(ref_mask) > 0.5
     if a.shape != b.shape:
         raise ValueError("shape_diff: the two masks differ in size")
@@ -218,7 +217,7 @@ class Ref:
     ref.fit((x0, y0, x1, y1)) says instead which box of your picture the whole reference corresponds to.
 
     How much of it you may use is set for the run (ref.level):
-      look     ref.show(...) only: you look, and draw what you see.
+      look     ref.show(...) only.
       measure  also ref.outline, ref.mask, ref.lines, ref.landmarks, ref.palette, ref.light, ref.tones and ref.check: shapes,
                colours as a palette, the light, and a coarse tone plan, but never its pixels.
       sample   also ref.picture (its pixels) and ref.on_canvas() (the picture fitted into your frame)."""

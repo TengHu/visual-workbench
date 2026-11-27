@@ -256,15 +256,15 @@ def _complete(img, hole, allowed, r, seed, coherence, sharp_levels=2):
 def fill(img, mask, source=None, patch=7, seed=1, coherence=0.8, _sharp=2):
     """Fill the masked area with matching material copied from the rest of the picture (content-aware fill).
 
-    Use it to remove things. The mask must cover ALL of the thing, with its shadow, reflection and soft edge:
-    grow the selection by 4 to 12 px first. Anything left uncovered stays, and is copied back into the hole.
+    Only what the mask covers is replaced: anything of a thing left uncovered (an edge, a shadow) stays, and can be
+    copied back into the hole. grow() enlarges the mask.
     Every pixel the mask selects at all is replaced, however faintly it is selected.
     source  a mask (or a box) of where it may copy from. By default the surroundings of the hole, out to about its
             own width. Give it whenever that pulls in the wrong material or there is better material further away:
             say exactly which stretch of wall, grass, water or sky to use. This is the main control over the result.
     patch   patch width in pixels (odd). 7 for fine texture; 9 to 15 keep larger structure (bricks, planks, waves).
     seed    another seed gives another fill; coherence (0.5..1) below 1 favours copying larger unbroken pieces.
-    Lines and edges that should run on through the hole are not guaranteed to: check, and continue them with clone()."""
+    Lines and edges that run into the hole are not necessarily continued through it; clone() continues one exactly."""
     a = np.ascontiguousarray(np.asarray(img, np.float32)[..., :3])
     m = np.clip(np.asarray(mask, np.float32), 0, 1)
     h, w = a.shape[:2]
@@ -322,7 +322,7 @@ def fill_options(img, mask, sources=(None,), patches=(7, 11), seeds=(1, 2)):
     pictures in the order shown (the sheet numbers them from 0).
 
     Every combination of the given sources, patch sizes and seeds is tried (each takes about a second), at most 6.
-    A fill is partly chance: take the best of several instead of accepting the first."""
+    Different seeds give different fills."""
     from .core import _emit, _fit, _to8
     from .masks import mask_box
     outs, labels = [], []

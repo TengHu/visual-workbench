@@ -4,9 +4,9 @@ src/gate.py or src/hands.py.
 
     vw eval loop
 
-The scripted model does a drawing job badly on purpose (no brief, no stages, a flat picture), then properly, and
-the checks must hold the bad deliveries back and let the good one through. The same is done through the hands-on
-commands (vw open / py / finish).
+The scripted model first offers the blank plate unchanged and then a picture of the wrong size, which the free
+checks must hold back (they are facts, not taste), then a plain flat picture with no brief or stages, which they
+must let through to the review. The same is done through the hands-on commands (vw open / py / finish).
 """
 import json
 import os
@@ -25,6 +25,8 @@ sys.path.insert(0, str(APP / "src"))
 from agent import Run  # noqa: E402
 from openrouter import Reply  # noqa: E402
 
+SAME = 'save(orig.copy(), "result.png")'
+SMALL = 'save(orig[: H // 2].copy(), "result.png")'
 FLAT = 'img = orig.copy(); img[:] = as_color("#7f8791"); img = blend(img, np.broadcast_to(as_color("#d8a23a"), img.shape), ellipse_mask(img, (150, 100, 350, 300))); save(img, "result.png")'
 GOOD = '''brief("A single orange ball on a grey table, seen from slightly above, large and centred, lit from the upper left by a soft window light, in grey, orange and a warm dark, painted in oils, loosely.")
 plan(["big shapes", "light and dark", "rendering"])
@@ -71,16 +73,20 @@ def check(name, ok, detail=""):
 tmp = Path(tempfile.mkdtemp(prefix="loop-test-"))
 # 1. The built-in loop, with no reviewer model (self-review), so it costs nothing.
 model = Scripted([
-    [("python", {"code": FLAT}), ("finish", {})],     # flat, no brief, no stages: held back by the process checks
-    [("python", {"code": GOOD}), ("finish", {})],     # the work done properly: passes the free checks, then self-review
+    [("python", {"code": SAME}), ("finish", {})],     # the plate unchanged: held back
+    [("python", {"code": SMALL}), ("finish", {})],    # the wrong size: held back
+    [("python", {"code": FLAT}), ("finish", {})],     # flat, no brief, no stages: passes the free checks, then self-review
     [("finish", {})],                                  # delivers after the self-review
 ])
-run = Run(mode="draw", model=model, critic_model=None, image=None, size=(500, 400), request="An orange ball on a grey table, painted in oils.", refs=[], ref_level="measure", out=tmp / "loop", rounds=6, effort="low", max_tokens=1000, max_usd=1, coords="xy", sam=False, max_side=4096, seconds=120, review=True, critic_passes=2)
+run = Run(mode="make", model=model, critic_model=None, image=None, size=(500, 400), request="An orange ball on a grey table, painted in oils.", refs=[], ref_level="measure", out=tmp / "loop", rounds=8, effort="low", max_tokens=1000, max_usd=1, coords="xy", sam=False, max_side=4096, seconds=120, review=True, critic_passes=2)
 run.session.sandbox = run.session.sandbox  # the session runs sandboxed, as in a real run
 final = run.go()
 kinds = [s["kind"] for r in run.rows for s in r["steps"]]
-check("loop: a flat picture made without a brief or stages is held back", kinds.count("check") >= 1 and "There is no brief" in next(s["note"] for r in run.rows for s in r["steps"] if s["kind"] == "check"), str(kinds))
-check("loop: the properly made picture is reviewed, then delivered", kinds[-2:] == ["review", "finish"] and final is not None, str(kinds))
+notes = [s["note"] for r in run.rows for s in r["steps"] if s["kind"] == "check"]
+check("loop: the unchanged plate is held back", len(notes) >= 1 and "identical to the plate" in notes[0], str(notes[:1]))
+check("loop: a result of the wrong size is held back", len(notes) >= 2 and "not the size of the plate" in notes[1], str(notes[1:2]))
+check("loop: a flat picture made without a brief or stages is not held back by the free checks", len(notes) == 2, str(kinds))
+check("loop: it is reviewed, then delivered", kinds[-2:] == ["review", "finish"] and final is not None, str(kinds))
 
 # 2. The hands-on commands.
 vw = str(APP / "vw")
@@ -89,20 +95,21 @@ def sh(*args, code=None):
     return subprocess.run([vw, *args], input=code, capture_output=True, text=True, timeout=600)
 o = sh("open", "An orange ball on a grey table, painted in oils.", "--size", "500x400", "--critic", "none", "--no-sam", "--out", str(job))
 check("hands: open", o.returncode == 0 and (job / "MANUAL.md").exists(), o.stderr[-300:])
-sh("py", str(job), "-", code=FLAT)
+sh("py", str(job), "-", code=SAME)
 f1 = sh("finish", str(job))
-check("hands: a flat, unstaged picture is held back", "NOT DELIVERED" in f1.stdout and "brief" in f1.stdout, f1.stdout[-300:])
+check("hands: the unchanged plate is held back", "NOT DELIVERED" in f1.stdout and "identical to the plate" in f1.stdout, f1.stdout[-300:])
 p = sh("py", str(job), "-", code=GOOD)
-check("hands: the proper steps run", p.returncode == 0, (p.stdout + p.stderr)[-400:])
+check("hands: brief, plan and stages run", p.returncode == 0, (p.stdout + p.stderr)[-400:])
 f2 = sh("finish", str(job))
-check("hands: then the self-review comes", "NOT DELIVERED" in f2.stdout and "review it yourself" in f2.stdout, f2.stdout[-400:])
+check("hands: then the self-review comes", "NOT DELIVERED" in f2.stdout and "No independent reviewer" in f2.stdout, f2.stdout[-400:])
 f3 = sh("finish", str(job), "--summary", "test")
 check("hands: then it is delivered", "DELIVERED:" in f3.stdout and (job / "result.png").exists(), f3.stdout[-300:])
 info = json.loads((job / "work" / "run.json").read_text())
 check("hands: the run's record says it was not independently reviewed", info.get("passed") is None, str(info.get("passed")))
 
 import gate  # noqa: E402
-check("a picture sent back and offered again unchanged is held back", any("nothing was changed" in f for f in gate.process("draw", {"resubmitted": True, "brief": "x", "plan": [1], "stages": [1, 2, 3], "calls": {"tones": 1}})))
+check("a picture sent back and offered again unchanged is held back", any("has not changed since that review" in f for f in gate.process({"resubmitted": True})))
+check("the free checks ask nothing of method", gate.process({"calls": {}, "plan": [], "stages": []}) == [])
 
 shutil.rmtree(tmp, ignore_errors=True)
 print("\n" + ("all checks passed" if not failed else f"{len(failed)} failed: " + ", ".join(failed)))

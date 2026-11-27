@@ -7,7 +7,7 @@ description: Use whenever someone wants a picture edited (recolour, remove, add,
 
 `vw` is a workbench for making pictures by writing code. It gives you a kit of picture tools, a Python session that keeps its state, views to look at, measurements, and checks and an independent review before anything is delivered. No image-generation model is involved: every pixel comes from code run in the workbench.
 
-Follow this file from top to bottom. Each job also gets its own `MANUAL.md` with the craft and every function of the kit. This file tells you how to run the job and what decides its quality.
+Follow this file from top to bottom. Each job also gets its own `MANUAL.md` with how the session and delivery work and every function of the kit. This file tells you how to run a job.
 
 ## 1. Find `vw` and check it is ready
 
@@ -24,38 +24,32 @@ The reviewer is a model reached through OpenRouter, using the key in the repo's 
 grep -qE '^(GATEWAY|OPENROUTER)_API_KEY=' "$(git -C "$(dirname "$VW")" rev-parse --show-toplevel)/.env" && echo key found
 ```
 
-Without a key, work with `--critic none`: you then review your own work against a checklist. Tell the person the result was not reviewed independently.
+Without a key, work with `--critic none`: you then compare the result with the request yourself. Tell the person the result was not reviewed independently.
 
 ## 2. Choose how to work
 
 - **You do it (hands-on): the normal way.** Use this when you can run shell commands and open picture files to look at them. It costs your own time plus about one cent per review.
 - **Direct a model.** `vw PICTURE "REQUEST"` has a model called by `vw` do the work (Gemini 4 Argon by default, or `--model ID`). Use it when you cannot look at pictures yourself, or the person asks for it. It takes 10 to 30 minutes and $0.50 to $2.50; see section 8.
 
-**Never import the kit into a script of your own outside `vw`, and never run the job without `vw open` / `vw py` / `vw finish`.** That skips the manual, the views and the review. Code of your own *inside* the session is fine and often needed: your own helpers, geometry, renderers or loops, run through `vw py`. It is how the worst picture this workbench has produced was made: flat tube arms, speckle, empty bands filled with a pattern.
+**Never import the kit into a script of your own outside `vw`, and never run the job without `vw open` / `vw py` / `vw finish`.** That skips the manual, the views and the review. Code of your own *inside* the session is fine: your own helpers, geometry, renderers or loops, run through `vw py`.
 
 ## 3. Pass on the request as it was given
 
-Put the person's words in the request exactly as they gave them. A few words stay a few words: inside the job you decide what they leave open, in a `brief`. Pass any picture they gave with `--ref`. The reviewer checks the result against the request part by part.
+Put the person's words in the request exactly as they gave them. A few words stay a few words. Pass the picture to work on as the first argument, and any other pictures with `--ref`. The reviewer checks the result against the request part by part, so the request is the only standard the result is held to.
 
-If you write the request yourself, from a longer conversation:
-- Name things by what is visible: "the brown car on the right".
-- Say what must stay: "Keep everything else as it is."
-- Describe new content concretely: material, colour, style, where it stands.
-- Name the medium for a drawing: pen and ink, gouache, oils, watercolour.
-- Give one job per run. Do two changes as two runs, the second on the first run's `result.png`.
+If you write the request yourself, from a longer conversation, use the person's own words and add nothing they did not ask for. Naming things by what is visible ("the brown car on the right") lets the reviewer find them.
 
 ## 4. Open the job
 
 ```
-$VW open photo.jpg "Make the brown car on the right a deep racing green. Keep everything else as it is."   # an edit
-$VW open "a fox in snow"                                                    # a drawing from a few words
-$VW open "Paint a study of this picture in oils." --ref photo.jpg           # from a reference photo
-$VW open "Finish this sketch as a watercolour." --ref sketch.png            # from a sketch
+$VW open photo.jpg "Make the brown car on the right a deep racing green."  # the plate is photo.jpg
+$VW open "a fox in snow"                                                    # the plate is a blank sheet
+$VW open "Paint a study of this picture in oils." --ref photo.jpg           # a blank sheet and a reference
 ```
 
 Options:
-- `--reference sample` lets you use a reference's pixels. That gives the most faithful study of a photo, so use it when the person wants a good painting of their photo. The default for a drawing is `measure`: shapes, landmarks, palette and light only, never pixels.
-- `--size 1200x1600` sets the sheet for a drawing. The default is the reference's shape, or 1600x1200 (landscape) without one: choose an upright sheet for an upright subject.
+- `--reference look|measure|sample` sets what the session may do with references: only look at them; also measure them (shapes, landmarks, palette, light, coarse tones); or also use their pixels. The default is `sample` with a plate picture and `measure` on a blank sheet.
+- `--size 1200x1600` sets the blank sheet's size. The default is the reference's shape, or 1600x1200 without one.
 - `--coords yx1000` if you are a Gemini model.
 - `--critic ID` picks the reviewer (default `argon`, the repo's `TARGET_MODEL`); `--critic none` when there is no key.
 - `--agent NAME` records who did the work.
@@ -64,7 +58,7 @@ Options:
 
 **Read `RUN/MANUAL.md` from beginning to end before you write any code.**
 
-## 5. Do the work in steps, looking after each
+## 5. Do the work
 
 ```
 $VW py RUN step1.py            # a file of Python, run in the job's session (keep step files in RUN)
@@ -73,53 +67,22 @@ show(orig, "the picture")
 EOF
 ```
 
-The session keeps its variables between steps, like a notebook. Each step prints its output and lists the views it made as picture files. **Open every listed view and look at it before writing the next step.** A job takes 15 to 30 steps, about half of them looking.
-
-These rules decide quality. `finish` enforces the ones that can be measured:
-
-0. **Decide the picture first.** For a drawing, start with `brief("...")`: subject, composition, light, palette and medium, in a few sentences. For a few words, choose as a careful illustrator would: a clear view of the subject, large on the sheet, one light, a quiet background. For a long request, list everything it asks for. For a sketch, keep its composition and drawing (`ref.lines()`) and add form, light and colour. For an edit, write a plan of the edit.
-1. **Work in stages.** `plan([...])`, then one stage at a time, each closed with `stage(name, picture)`. Judge each stage before building on it.
-2. **Measure instead of guessing.**
-   - Shapes: `select_object`, `ref.mask`.
-   - Positions: `landmarks`.
-   - Light: `light_on`, `ref.light`.
-   - Colour: `palette`.
-   - An edit: `changes`, `edit_report`.
-   - A drawing: `drawing_report`, `ref.check`, `tones`, `squint`, `mirror`.
-3. **Form before brushwork.**
-   - Anything living or rounded (an animal, a person, cloth, a cloud) is built in 3D first, then rendered in the picture's light. Start from `quadruped()` or `figure()`, which have correct proportions, or build a `Sculpture` of rounded parts.
-   - Simpler things get their real outline (`curve_mask`) and volume (`form`).
-   - Only then paint: `paint()` for oil or gouache, `wash()` for watercolour, `hatch()` for ink.
-4. **Keep the study clean.** Never add noise or random dabs to look painted. The stroke engine supplies the brushwork.
-5. **Fill the sheet.** Never leave empty bands, and never fill them with a border or pattern.
-6. **In an edit, change only what was asked.** Work through a mask. Zoom into the edited area and along its border, compare with the original, and check that nothing outside moved.
+The session keeps its variables between steps, like a notebook. Each step prints its output and lists the views it made as picture files. You see a view only by opening its file.
 
 ## 6. Deliver through `finish`
 
 ```
-$VW finish RUN --summary "what was done, and what could not be done well"
+$VW finish RUN --summary "what was done, and any part of the request that was not"
 ```
 
-Before you call it, run the painter's checks on the final picture yourself (`drawing_report`, `tones`, `squint`, `mirror`, and `ref.check` with a reference) and act on what they show.
+`finish` first runs free checks that need no judgement. They hold the delivery back when:
+- the result is the same file a review already sent back, unchanged;
+- it is not the size of the plate;
+- no pixel differs from the plate.
 
-`finish` first runs free checks.
-- For a drawing: a brief, a plan, three closed stages, and the painter's checks were used.
-- For an edit: it was zoomed into and compared with the original.
-- For any picture, measurable faults hold it back:
-  - the wrong size;
-  - an edit that changed nothing;
-  - a picture mostly flat;
-  - no real darks or lights;
-  - a bare sheet.
+When the request calls for one of these (for example a request to change the size), pass `--accept "reason"`; the reason is recorded.
 
-If something is missing, it says what to do. Do it and finish again. If the request itself rules a check out (a flat poster was asked for), pass `--accept "reason"`; the reason is recorded.
-
-Then the reviewer looks at the result.
-- Open the check views it lists.
-- Look at each reported fault yourself, close up.
-- Fix what is really there, save with `save(img, "result.png")`, and finish again.
-
-A picture sent back is not accepted again unchanged: change it before the next `finish` (that refusal does not use up a review). Two reviews can hold a delivery back. After that the picture is delivered, reviewed once more, and marked **PASSED** or **NOT PASSED**.
+Then the reviewer is shown the request, the plate and the result, and reports which parts of the request it judges not done and what faults it sees. When it reports any, the delivery is held back and the report is printed with check views to open; run `finish` again to have the result reviewed again. Two reviews can hold a delivery back. After that the picture is delivered, reviewed once more, and marked **PASSED** or **NOT PASSED**.
 
 ## 7. Report honestly
 
@@ -131,27 +94,21 @@ Give the person:
 
 Never call a NOT PASSED picture finished or perfect. `RUN/index.html` shows every step, view and review. `$VW learn RUN --out page.html` writes one page explaining how it was made, to send to someone.
 
-**If it is not good enough, in this order:**
+**If the result does not do what was asked:**
 1. Do it again, which costs nothing but time.
-2. Do a narrow second pass on the result, naming the fault: `$VW open RUN/result.png "Remove the thin yellow strip by her arm. Keep everything else as it is."`
-3. For a study of a photo that came out badly drawn, use `--reference sample`.
-4. Say what still fails instead of spending more.
-
-**What to expect:**
-- Recolouring, removing, retouching and changing the light can be hard to tell from a photograph.
-- Structure, proportion, light and form are right when you follow the rules.
-- Fine organic detail (fur, faces, foliage) and photoreal new people are the weakest part. Say so before starting such a job.
+2. Do a narrow second pass on the result, naming the fault: `$VW open RUN/result.png "Remove the thin yellow strip by her arm."`
+3. Say what still fails instead of spending more.
 
 ## 8. Directing a model instead
 
 ```
-$VW photo.jpg "REQUEST" --out RUN > RUN.log 2>&1 &     # an edit; without a picture it draws
+$VW photo.jpg "REQUEST" --out RUN > RUN.log 2>&1 &     # the plate is photo.jpg; without a picture, a blank sheet
 $VW "REQUEST" --ref photo.jpg --out RUN > RUN.log 2>&1 &
 ```
 
 The same manual, checks and review apply. It is finished when the log's last line starts with `Result:`, and the log says PASSED or NOT PASSED. Then judge and report as in section 7.
 
-- Replacing or adding something needs `--rounds 30 --max-usd 4 --max-tokens 60000`.
+- `--rounds`, `--max-usd` and `--max-tokens` set how many replies the model gets, the spending cap and the output cap per reply.
 - `--max-usd` is a hard cap. Tell the person the cap before you start.
 - `--model ID` uses any OpenRouter model with tool calling and image input.
 - `--critic ID` has another model review.

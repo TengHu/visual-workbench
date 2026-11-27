@@ -25,11 +25,16 @@ SRC = Path(__file__).resolve().parent
 APP = SRC.parent
 SOCK = ".vw.sock"
 
-SELF_REVIEW = """No independent reviewer is set for this job, so review it yourself: above are the result's measurements and check views. Open each view.
+SELF_REVIEW = """No independent reviewer is set for this job: above are the result's measurements and views. Open each view.
 
-Look at it as if someone else had made it and you had to find what is wrong with it. Go through the manual's lists ("What gives an edit away", "Checks to make"). Then read the request once more, word by word: is every part of it done?
+Compare the result with the request, part by part: is each part of it done? Is anything changed that the request did not ask for?
 
-If you find anything, fix it, save, and run finish again. If it truly holds up, run finish again now to deliver."""
+If something is not done, change it, save, and run finish again. Otherwise run finish again now to deliver."""
+
+
+def _plate(cfg: dict) -> bool:
+    """Whether the job's plate is a picture that came with the request (older jobs recorded mode edit/draw)."""
+    return bool(cfg.get("has_plate", cfg.get("mode") == "edit"))
 
 
 def resolve(run: str) -> Path:
@@ -148,7 +153,7 @@ def _add_row(work: Path, steps: list[dict], seconds: float) -> None:
 def _pages(out: Path, done: bool = False, final: Path | None = None) -> None:
     cfg = _config(out / "work")
     who = "hands-on" + (f": {cfg['agent']}" if cfg.get("agent") else "")
-    pages.write(pages.Record(dir=out, mode=cfg["mode"], request=(out / "REQUEST.md").read_text(), model_id=who, w=cfg["w"], h=cfg["h"], rows=_rows(out / "work"), stages=cfg.get("stages") or [], reviews=cfg.get("review_reports") or [], summary=cfg.get("summary") or "", delivered=cfg.get("delivered"), hands_on=True, passed=cfg.get("passed"), accepted=cfg.get("accepted") or ""), done, final)
+    pages.write(pages.Record(dir=out, mode="edit" if _plate(cfg) else "draw", request=(out / "REQUEST.md").read_text(), model_id=who, w=cfg["w"], h=cfg["h"], rows=_rows(out / "work"), stages=cfg.get("stages") or [], reviews=cfg.get("review_reports") or [], summary=cfg.get("summary") or "", delivered=cfg.get("delivered"), hands_on=True, passed=cfg.get("passed"), accepted=cfg.get("accepted") or ""), done, final)
 
 
 def command() -> str:
@@ -168,7 +173,7 @@ def open_(argv: list[str]) -> None:
     p.add_argument("--reference", choices=["look", "measure", "sample"], help="what may be taken from references (default sample when editing, measure when drawing)")
     p.add_argument("--size", help="the blank sheet when drawing, WIDTHxHEIGHT (default: the shape of the first reference; 1600x1200 without one)")
     p.add_argument("--coords", choices=["xy", "yx1000"], default="xy", help="how you write positions read off a view: xy (pixels of the view, the default) or yx1000 ([y, x] 0..1000, native to Gemini models)")
-    p.add_argument("--critic", default="argon", help="who reviews before delivery: 'argon' or any OpenRouter model id (the request, the original and the result are sent to it), or 'none' (you review your own work against a checklist)")
+    p.add_argument("--critic", default="argon", help="who reviews before delivery: 'argon' or any OpenRouter model id (the request, the plate and the result are sent to it), or 'none' (you compare the result with the request yourself)")
     p.add_argument("--critic-passes", type=int, default=2, help="how many times a delivery may be held back for review (default 2)")
     p.add_argument("--agent", default="", help="a name for whoever does the work, for the record (e.g. claude-code, antigravity)")
     p.add_argument("--max-side", type=int, default=4096, help="pictures larger than this are reduced first (default 4096)")
@@ -178,8 +183,9 @@ def open_(argv: list[str]) -> None:
     p.add_argument("--out", help="the job's folder (default runs/<time>-<request>)")
     a = p.parse_args(argv)
     image, request = sort_inputs(p, a.inputs, a.ref)
-    mode = "edit" if image else "draw"
-    size = sheet_size(p, a.size, a.ref) if mode == "draw" else (0, 0)
+    mode = "make"
+    has_plate = image is not None
+    size = (0, 0) if has_plate else sheet_size(p, a.size, a.ref)
     import re
     slug = re.sub(r"[^a-z0-9]+", "-", request.lower()).strip("-")[:40] or mode
     out = (Path(a.out) if a.out else APP / "runs" / f"{time.strftime('%Y%m%d-%H%M%S')}-{slug}").resolve()
@@ -187,40 +193,36 @@ def open_(argv: list[str]) -> None:
         p.error(f"{out} already holds a job; give another --out")
     out.mkdir(parents=True, exist_ok=True)
     (out / "REQUEST.md").write_text(request)
-    ref_level = a.reference or ("sample" if mode == "edit" else "measure")
+    ref_level = a.reference or ("sample" if has_plate else "measure")
     w, h, notes, refs = set_up(out, mode, image, size, a.ref, ref_level, a.max_side)
     work = out / "work"
     sam = not a.no_sam and (APP / ".models" / "sam2.1_hiera_large.pt").exists()
-    _save(work, {"mode": mode, "coords": a.coords, "sam": sam, "ref_level": ref_level, "timeout": a.timeout, "sandbox": not a.no_sandbox, "critic": a.critic, "critic_passes": a.critic_passes, "agent": a.agent, "w": w, "h": h, "refs": refs, "reviews": 0, "boot": None, "delivered": None})
+    _save(work, {"mode": mode, "has_plate": has_plate, "coords": a.coords, "sam": sam, "ref_level": ref_level, "timeout": a.timeout, "sandbox": not a.no_sandbox, "critic": a.critic, "critic_passes": a.critic_passes, "agent": a.agent, "w": w, "h": h, "refs": refs, "reviews": 0, "boot": None, "delivered": None})
     vw = command()
     text = manual.build(coords=a.coords, rounds=0, sam=sam, seconds=a.timeout, max_views=6, mode=mode, ref_level=ref_level, refs=len(refs), interface="cli", run=str(out), vw=vw, reviews=a.critic_passes if a.critic != "none" else 1)
     (out / "MANUAL.md").write_text(text)
     (work / "system.md").write_text(text)
 
     first = []
-    if mode == "edit":
-        first += call(work, "show(orig, 'the picture')", private=True)["views"]
+    first += call(work, "show(orig, 'the plate')", private=True)["views"]
     for i in range(len(refs)):
         first += call(work, f"refs[{i}].show('reference refs[{i}]')", private=True)["views"]
     cfg = _config(work)
     _pages(out)
     print(f"Job opened: {out}\n")
     print(f"The request: {request}\n")
-    if mode == "edit":
-        print(f"The picture is {w}x{h}; it is `orig` in the session." + (" " + " ".join(notes) if notes else ""))
-    else:
-        print(f"Your sheet is {w}x{h} pixels, blank, paper-coloured; it is `orig` in the session." + (" It has the shape of the reference." if refs and not a.size else ""))
+    print(f"Your plate is {w}x{h}; it is `orig` and `input.png` in the session" + (" — the picture that came with the request." if has_plate else " — a blank sheet." + (" It has the shape of the reference." if refs and not a.size else "")) + (" " + " ".join(notes) if notes else ""))
     if refs:
         print(f"{len(refs)} reference picture{'s' if len(refs) > 1 else ''}: `refs` in the session; you may {ref_level} " + ("at them only." if ref_level == "look" else "them." if ref_level == "measure" else "them (use their pixels)."))
-    print("Reviewer before delivery: " + ("you, against a checklist (--critic none)." if cfg["critic"] == "none" else f"{cfg['critic']}, independent (the request, the original and the result are sent to it)."))
+    print("Reviewer before delivery: " + ("you (--critic none)." if cfg["critic"] == "none" else f"{cfg['critic']}, independent (the request, the plate and the result are sent to it)."))
     print(_views(work, first).lstrip("\n"))
     print(f"""
 What to do now, in this order:
 1. Read the manual, all of it, before writing any code: {out / 'MANUAL.md'}
 2. Open the views listed above and look at them.
-3. Work in stages:  {vw} py {out} step.py   (or  {vw} py {out} - <<'EOF' ... EOF);  open every view each call lists.
+3. Run code:  {vw} py {out} step.py   (or  {vw} py {out} - <<'EOF' ... EOF);  open every view each call lists.
 4. Save with save(img, "result.png") in the session, then:  {vw} finish {out}
-   The first finish brings check views and a review; fix what is found and run it again. Only that delivers.""")
+   The first finish brings check views and a review; run it again to deliver. Only that delivers.""")
 
 
 def py(argv: list[str]) -> None:
@@ -275,11 +277,11 @@ def finish(argv: list[str]) -> None:
         # they find something; only `--accept "reason"` lets a result past them.
         reports = cfg.get("review_reports") or []
         resub = bool(reports) and reports[-1].get("verdict") == "fix" and gate.digest(path) == cfg.get("last_reviewed")
-        faults, kind = gate.process(cfg["mode"], {**_process(work), "resubmitted": resub}), "process"
+        faults, kind = gate.process({**_process(work), "resubmitted": resub}), "process"
         if not faults:
-            sheet = call(work, REVIEW_CODE[cfg["mode"]].format(file=a.file), private=True)
+            sheet = call(work, REVIEW_CODE.format(file=a.file, plate=_plate(cfg)), private=True)
             try:
-                faults, kind = gate.measured(cfg["mode"], json.loads((work / "gate.json").read_text()), request), "measured"
+                faults, kind = gate.measured(json.loads((work / "gate.json").read_text()), _plate(cfg)), "measured"
             except (OSError, ValueError):
                 faults = []
         if faults:
@@ -289,7 +291,7 @@ def finish(argv: list[str]) -> None:
             print(note + (_views(work, sheet["views"]) if sheet else "") + f"\n\nNOT DELIVERED YET. Run again when it is done:  {command()} finish {out}")
             return
     if cfg["reviews"] < passes:
-        r = sheet or call(work, REVIEW_CODE[cfg["mode"]].format(file=a.file), private=True)
+        r = sheet or call(work, REVIEW_CODE.format(file=a.file, plate=_plate(cfg)), private=True)
         numbers = (r.get("stdout") or "").strip()
         text, ok, report = _review(out, cfg, numbers, r["views"])
         cfg = _config(work)
@@ -314,7 +316,7 @@ def finish(argv: list[str]) -> None:
     if not reviewed_now and cfg["critic"] != "none" and cfg.get("last_reviewed") != gate.digest(path):
         # The reviews that could hold the delivery back are used. This version still gets a review of its own, for
         # the record: whoever is handed the picture should know what the reviewer made of exactly this version.
-        r = call(work, REVIEW_CODE[cfg["mode"]].format(file=a.file), private=True)
+        r = call(work, REVIEW_CODE.format(file=a.file, plate=_plate(cfg)), private=True)
         numbers = (r.get("stdout") or "").strip()
         text, ok, report = _review(out, cfg, numbers, r["views"], final=True)
         if report is not None:
@@ -376,12 +378,12 @@ def _review(out: Path, cfg: dict, numbers: str, views: list[dict], final: bool =
     except SystemExit as e:
         return head + f"(No independent reviewer: {e}.)\n\n" + SELF_REVIEW, False, None
     shown = []
-    if cfg["mode"] == "edit":
-        shown.append(("The original", str(out / "original.png")))
+    if _plate(cfg):
+        shown.append(("The plate (the picture that came with the request)", str(out / "original.png")))
     shown += [(f"Reference {i + 1}", str(work / ".refs" / n)) for i, n in enumerate(cfg.get("refs") or [])]
     shown += [(v["caption"], str(work / v["file"])) for v in views]
     try:
-        rev, usage = critic.review(model, mode=cfg["mode"], request=(out / "REQUEST.md").read_text(), pictures=shown, numbers=numbers)
+        rev, usage = critic.review(model, request=(out / "REQUEST.md").read_text(), pictures=shown, numbers=numbers)
     except ModelError as e:
         return head + f"(The reviewer could not be reached: {e})\n\n" + SELF_REVIEW, False, None
     ok = rev["verdict"] == "deliver"
