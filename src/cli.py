@@ -90,10 +90,10 @@ def main(argv: list[str] | None = None) -> None:
     a = p.parse_args(argv)
 
     image, request = sort_inputs(p, a.inputs, a.ref)
-    mode = "edit" if image else "draw"
-    edit = mode == "edit"
+    mode = "make"
+    has_plate = image is not None
 
-    size = sheet_size(p, a.size, a.ref) if not edit else (0, 0)
+    size = (0, 0) if has_plate else sheet_size(p, a.size, a.ref)
 
     from agent import Run
     from openrouter import create
@@ -109,10 +109,10 @@ def main(argv: list[str] | None = None) -> None:
     (out / "REQUEST.md").write_text(request)
     sam = not a.no_sam and (APP / ".models" / "sam2.1_hiera_large.pt").exists()
     run = Run(mode=mode, model=model, critic_model=critic_model, image=image, size=size, request=request, refs=a.ref,
-              ref_level=a.reference or ("sample" if edit else "measure"), out=out,
-              rounds=a.rounds or (24 if edit else 36), effort=a.effort, max_tokens=a.max_tokens or (32000 if edit else 60000),
+              ref_level=a.reference or ("sample" if has_plate else "measure"), out=out,
+              rounds=a.rounds or 36, effort=a.effort, max_tokens=a.max_tokens or 60000,
               max_usd=a.max_usd, coords=coords, sam=sam, max_side=a.max_side, seconds=a.timeout, review=review, critic_passes=a.critic_passes)
-    print(f"{'editing ' + image if edit else f'drawing on a blank {size[0]}x{size[1]} sheet' + (' (the shape of the reference)' if a.ref and not a.size else '')}")
+    print(("working on " + image) if has_plate else f"on a blank {size[0]}x{size[1]} sheet" + (" (the shape of the reference)" if a.ref and not a.size else ""))
     print(f"reviewer: {('on, ' + critic_model.id) if review and critic_model else 'on, self-review only' if review else 'off'}")
     print(f"watch it: open {out / 'index.html'}")
     run.go()

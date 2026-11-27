@@ -91,7 +91,7 @@ def set_up(out: Path, mode: str, image: str | None, size: tuple[int, int], refs:
     work = out / "work"
     work.mkdir(parents=True, exist_ok=True)
     notes = []
-    if mode == "edit":
+    if image:
         w, h, shrunk = prepare(image, work / "input.png", max_side)
         if shrunk:
             notes.append(f"The picture was reduced to {w}x{h} to fit --max-side.")
@@ -114,6 +114,8 @@ def set_up(out: Path, mode: str, image: str | None, size: tuple[int, int], refs:
 class Run:
     def __init__(self, *, mode: str, model: OpenRouter, critic_model: OpenRouter | None, image: str | None, size: tuple[int, int], request: str, refs: list[str], ref_level: str, out: Path, rounds: int, effort: str, max_tokens: int, max_usd: float, coords: str, sam: bool, max_side: int, seconds: int, review: bool, critic_passes: int):
         self.mode, self.model, self.critic_model, self.request = mode, model, critic_model, request
+        self.has_plate = image is not None
+        self.kind = "edit" if self.has_plate else "draw"   # mechanical label: is there a plate to preserve?
         self.rounds, self.effort, self.max_tokens, self.max_usd = rounds, effort, max_tokens, max_usd
         self.review, self.critic_passes, self.ref_level = review, critic_passes, ref_level
         self.dir = out
@@ -200,12 +202,9 @@ class Run:
     def go(self) -> Path | None:
         print(f"{self.mode} · {self.model.id} · effort {self.effort} · {self.w}x{self.h} · up to {self.rounds} rounds · cap ${self.max_usd}\n{self.dir}\n")
         intro = [{"type": "text", "text": f"# The request\n\n{self.request}"}]
-        if self.mode == "edit":
-            first = self.session.run("show(orig, 'the picture')", private=True)
-            intro += self._views_parts(first["views"])
-            intro.append({"type": "text", "text": f"The picture is {self.w}x{self.h}; it is `orig` and `input.png` in your session." + (" " + " ".join(self.notes) if self.notes else "")})
-        else:
-            intro.append({"type": "text", "text": f"Your sheet is {self.w}x{self.h} pixels, blank, paper-coloured. It is `orig`, and the base of `stack`."})
+        first = self.session.run("show(orig, 'the plate')", private=True)
+        intro += self._views_parts(first["views"])
+        intro.append({"type": "text", "text": f"Your plate is {self.w}x{self.h}; it is `orig` and `input.png` in your session" + (" — the picture that came with the request." if self.has_plate else " — a blank sheet.") + (" " + " ".join(self.notes) if self.notes else "")})
         for i, name in enumerate(self.refs):
             r = self.session.run(f"refs[{i}].show('reference refs[{i}]')", private=True)
             intro.append({"type": "text", "text": f"A picture that came with the request, `refs[{i}]` in your session" + (f" (also the file `{name}`)" if self.ref_level == "sample" else "") + ":"})
@@ -273,17 +272,17 @@ class Run:
     def _review(self, file: str, final: bool = False, sheet: dict | None = None) -> tuple[list[dict], str, bool]:
         """Views and text for a held-back finish, and whether the reviewer would let the result go."""
         self.last_reviewed = self._digest(self.work / file)
-        r = sheet or self.session.run(REVIEW_CODE[self.mode].format(file=file), private=True)
+        r = sheet or self.session.run(REVIEW_CODE[self.kind].format(file=file), private=True)
         numbers = r["stdout"].strip()
         if self.critic_model is None:
             return r["views"], (numbers + "\n\n" if numbers else "") + SELF_REVIEW, False
         pictures = []
-        if self.mode == "edit":
+        if self.kind == "edit":
             pictures.append(("The original", str(self.dir / "original.png")))
         pictures += [(f"Reference {i + 1}", str(self.work / ".refs" / n)) for i, n in enumerate(self.refs)]
         pictures += [(v["caption"], str(self.work / v["file"])) for v in r["views"]]
         try:
-            rev, usage = critic.review(self.critic_model, mode=self.mode, request=self.request, pictures=pictures, numbers=numbers)
+            rev, usage = critic.review(self.critic_model, mode=self.kind, request=self.request, pictures=pictures, numbers=numbers)
         except ModelError as e:
             return r["views"], (numbers + "\n\n" if numbers else "") + f"(The reviewer could not be reached: {e})\n\n" + SELF_REVIEW, False
         self.spent += usage.get("usd") or 0
@@ -344,11 +343,11 @@ class Run:
                 if not final_round and not accept and self.free_holds < 4:  # the free checks run even with the reviewer off
                     # The free checks come first: how the work was done, then what a ruler can tell.
                     resub = bool(self.reviews) and self.reviews[-1].get("verdict") == "fix" and gate.digest(path) == self.last_reviewed
-                    faults, kind = gate.process(self.mode, {**self.process, "resubmitted": resub}), "process"
+                    faults, kind = gate.process(self.kind, {**self.process, "resubmitted": resub}), "process"
                     if not faults:
-                        sheet = self.session.run(REVIEW_CODE[self.mode].format(file=file), private=True)
+                        sheet = self.session.run(REVIEW_CODE[self.kind].format(file=file), private=True)
                         try:
-                            faults, kind = gate.measured(self.mode, json.loads((self.work / "gate.json").read_text()), self.request), "measured"
+                            faults, kind = gate.measured(self.kind, json.loads((self.work / "gate.json").read_text()), self.request), "measured"
                         except (OSError, ValueError):
                             faults = []
                     if faults:
@@ -399,4 +398,4 @@ class Run:
     # -- the run's pages ---------------------------------------------------------------------------------------
 
     def write_pages(self, done: bool = False, final: Path | None = None) -> None:
-        pages.write(pages.Record(dir=self.dir, mode=self.mode, request=self.request, model_id=self.model.id, w=self.w, h=self.h, rounds=self.rounds, effort=self.effort, spent=self.spent, rows=self.rows, stages=self.stages, reviews=self.reviews, stopped=self.stopped, summary=self.summary, delivered=self.delivered, unsaved=self.unsaved, passed=self.passed, accepted=self.accepted), done, final)
+        pages.write(pages.Record(dir=self.dir, mode=self.kind, request=self.request, model_id=self.model.id, w=self.w, h=self.h, rounds=self.rounds, effort=self.effort, spent=self.spent, rows=self.rows, stages=self.stages, reviews=self.reviews, stopped=self.stopped, summary=self.summary, delivered=self.delivered, unsaved=self.unsaved, passed=self.passed, accepted=self.accepted), done, final)

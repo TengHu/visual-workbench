@@ -55,10 +55,7 @@ REF_LEVEL = {
     "sample": "You may look at a reference, measure it, and use its pixels (`ref.picture`, `ref.on_canvas()`).",
 }
 
-INTRO = {
-    "edit": """You change a picture by writing Python that runs in your session, using the kit described below. There is no image-generation model: every pixel that changes comes from your code. `orig` is the picture (read-only); a change must leave the rest of the picture as it was.""",
-    "draw": """You make a picture by writing Python that runs in your session, using the kit described below. There is no image-generation model: every mark comes from your code and the stroke engine you direct. `orig` is the sheet, and the base of `stack`.""",
-}
+INTRO = """You work on a plate: the picture that came with the request, or a blank sheet if none was given. You change the plate by writing Python that runs in your session, using the kit described below. There is no image-generation model: every changed pixel comes from your code."""
 
 
 HOW = {
@@ -102,11 +99,11 @@ def build(*, coords: str, rounds: int, sam: bool, seconds: int, max_views: int, 
         if sam
         else "`select_object` uses a colour graph cut: it works when the thing differs in colour or brightness from what is around it, and needs your fg/bg points when it does not."
     )
-    sheet = "`orig` is the original picture, read-only; `W` and `H` are its width and height. It is also the file `input.png`." if mode == "edit" else "`orig` is the blank sheet (paper colour), read-only; `W` and `H` are its width and height."
+    sheet = "`orig` is the plate, read-only; `W` and `H` are its width and height. It is also the file `input.png`. It is blank if no picture came with the request."
     ref_text = "" if not refs else f"\n\n`refs` holds the {refs} reference picture{'s' if refs > 1 else ''} that came with the request; `ref` is the first (`refs[0]`). {REF_LEVEL[ref_level]}"
     how = HOW[interface].format(seconds=seconds, rounds=rounds, run=run, vw=vw)
     seeing = SEEING[interface].format(max_views=max_views)
-    return f"""{INTRO[mode]}
+    return f"""{INTRO}
 
 # How you work
 
