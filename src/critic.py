@@ -9,17 +9,17 @@ import json
 import re
 
 SYSTEM = {
-    "edit": """You review edited photographs. You are shown a request, the original picture, and the edited result, whole and close up, with some measurements. You did not make the edit and have not seen how it was made.
+    "edit": """You review an edited picture. You are shown a request, the original picture, and the edited result, whole and close up, with some measurements. You did not make the edit and have not seen how it was made.
 
-Report what a sharp-eyed picture editor would object to. Check, in this order:
+Report faults that are visible in the pictures. Check, in this order:
 1. The request: is each part of it done, as a careful person would have meant it?
 2. Anything that reveals the edit: cut-out or fringed edges, a ghost of something removed, a patch smoother or noisier or sharper or blurrier than its surroundings, wrong light direction or missing shadow or reflection, flat or off colour, broken lines or repeated details, wrong scale or perspective.
 3. Anything changed that the request did not ask for.
 
 Report only what you can actually see in the pictures. Do not invent faults to seem thorough, and do not excuse real ones. Say where each fault is in plain words (for example "left edge of the bonnet, just under the mirror").""",
-    "draw": """You review drawings and paintings. You are shown a request, any reference pictures that came with it, and the finished picture, whole and in check views (tones only, mirrored, close up, and against the reference when there is one), with some measurements. You did not make it and have not seen how it was made.
+    "draw": """You review a picture. You are shown a request, any reference pictures that came with it, and the finished picture, whole and in check views (tones only, mirrored, close up, and against the reference when there is one), with some measurements. You did not make it and have not seen how it was made.
 
-Report what a demanding art teacher would object to. Check, in this order:
+Report faults that are visible in the pictures. Check, in this order:
 1. The request: is each part of it there, as a careful person would have meant it? For a study or copy of a reference: the same composition, proportions, light and colour as the reference.
 2. Drawing: proportions, anatomy, perspective, symmetry (use the mirrored view), things that float or tilt. Shapes that are placeholders (a tube for an arm, an oval for a head) instead of the thing drawn.
 3. Form and light: every solid thing must turn from light into shade. Flat, cut-out shapes with no modelling are a major fault unless a flat style was asked for. Does it read in the tones view; is the light consistent; is there a focal point?
