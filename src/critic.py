@@ -8,26 +8,17 @@ from __future__ import annotations
 import json
 import re
 
-SYSTEM = {
-    "edit": """You review an edited picture. You are shown a request, the original picture, and the edited result, whole and close up, with some measurements. You did not make the edit and have not seen how it was made.
+SYSTEM = """You review a picture. You are shown a request, the plate (a blank sheet or the original picture, and any references that came with the request), and the result, whole and in check views (tones only, mirrored, close up), with some measurements. You did not make it and have not seen how it was made.
 
 Report faults that are visible in the pictures. Check, in this order:
-1. The request: is each part of it done, as a careful person would have meant it?
-2. Anything that reveals the edit: cut-out or fringed edges, a ghost of something removed, a patch smoother or noisier or sharper or blurrier than its surroundings, wrong light direction or missing shadow or reflection, flat or off colour, broken lines or repeated details, wrong scale or perspective.
-3. Anything changed that the request did not ask for.
+1. The request: is each part of it done, as a careful person would have meant it? For a study or copy of a reference: the same composition, proportions, light and colour as the reference.
+2. Anything changed that the request did not ask for.
+3. Drawing: proportions, anatomy, perspective, symmetry (use the mirrored view), things that float or tilt. Shapes that are placeholders (a tube for an arm, an oval for a head) instead of the thing drawn.
+4. Form and light: every solid thing must turn from light into shade. Flat, cut-out shapes with no modelling are a major fault unless a flat style was asked for. Does it read in the tones view; is the light consistent; is there a focal point?
+5. Surface and edges: speckle or confetti (scattered dabs that model nothing), marks that are mechanical, scratchy or all one size, features that look pasted on because they are hard and clean on a rough surface, glows and halos, bare or unfinished passages; cut-out or fringed edges, a ghost of something removed, a patch smoother or noisier or sharper or blurrier than its surroundings, wrong light direction or a missing shadow or reflection.
+6. The sheet: empty bands or filler at the sides, a subject too small or cut off, a format that does not suit the subject.
 
-Report only what you can actually see in the pictures. Do not invent faults to seem thorough, and do not excuse real ones. Say where each fault is in plain words (for example "left edge of the bonnet, just under the mirror").""",
-    "draw": """You review a picture. You are shown a request, any reference pictures that came with it, and the finished picture, whole and in check views (tones only, mirrored, close up, and against the reference when there is one), with some measurements. You did not make it and have not seen how it was made.
-
-Report faults that are visible in the pictures. Check, in this order:
-1. The request: is each part of it there, as a careful person would have meant it? For a study or copy of a reference: the same composition, proportions, light and colour as the reference.
-2. Drawing: proportions, anatomy, perspective, symmetry (use the mirrored view), things that float or tilt. Shapes that are placeholders (a tube for an arm, an oval for a head) instead of the thing drawn.
-3. Form and light: every solid thing must turn from light into shade. Flat, cut-out shapes with no modelling are a major fault unless a flat style was asked for. Does it read in the tones view; is the light consistent; is there a focal point?
-4. Surface: speckle or confetti (scattered dabs of colour that model nothing), marks that are mechanical, scratchy or all one size, features that look pasted on because they are hard and clean on a rough surface, glows and halos round shapes, bare or unfinished passages.
-5. The sheet: empty bands or filler at the sides, a subject too small or cut off, a format that does not suit the subject.
-
-Report only what you can actually see. Do not invent faults to seem thorough, and do not excuse real ones. Say where each fault is in plain words.""",
-}
+Report only what you can actually see. Do not invent faults to seem thorough, and do not excuse real ones. Say where each fault is in plain words (for example "left edge of the bonnet, just under the mirror")."""
 
 FORMAT = """Answer with one JSON object and nothing else:
 {"request": [{"part": "<one part of the request>", "done": true or false, "note": "<why not, if not>"}],
@@ -54,7 +45,7 @@ def review(model, *, mode: str, request: str, pictures: list[tuple[str, str]], n
     if numbers.strip():
         parts.append({"type": "text", "text": "Measurements:\n" + numbers.strip()})
     parts.append({"type": "text", "text": FORMAT})
-    reply = model.send([{"role": "system", "content": SYSTEM[mode]}, {"role": "user", "content": parts}], [], effort, 8000)
+    reply = model.send([{"role": "system", "content": SYSTEM}, {"role": "user", "content": parts}], [], effort, 8000)
     out = _json(reply.text) or {"request": [], "faults": [{"where": "", "what": "the reviewer's answer could not be read: " + reply.text[:300], "severity": "minor"}], "verdict": "fix"}
     out.setdefault("request", [])
     out.setdefault("faults", [])
@@ -88,6 +79,6 @@ def choose(model, *, mode: str, request: str, original: str | None, a: str, b: s
         parts += [{"type": "text", "text": "The original:"}, {"type": "image", "file": original}]
     parts += [{"type": "text", "text": "Result A:"}, {"type": "image", "file": a}, {"type": "text", "text": "Result B:"}, {"type": "image", "file": b}]
     parts.append({"type": "text", "text": 'Which result is better, judged as described? Answer with one JSON object and nothing else: {"better": "A" or "B" or "tie", "reason": "<one sentence>"}'})
-    reply = model.send([{"role": "system", "content": SYSTEM[mode]}, {"role": "user", "content": parts}], [], effort, 4000)
+    reply = model.send([{"role": "system", "content": SYSTEM}, {"role": "user", "content": parts}], [], effort, 4000)
     j = _json(reply.text) or {}
     return (j.get("better") if j.get("better") in ("A", "B", "tie") else "tie"), str(j.get("reason", "")), reply.usage
