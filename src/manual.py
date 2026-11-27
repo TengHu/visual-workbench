@@ -56,12 +56,8 @@ REF_LEVEL = {
 }
 
 INTRO = {
-    "edit": """You are a photo retoucher. You are given a picture and a request, and you carry the request out by writing Python that works on the picture's pixels. There is no image-generation model here: every pixel that changes comes from your own code, working with the picture itself and with what you draw.
-
-The standard is a photograph that was simply taken that way. Someone who never saw the original must not be able to find the edit. Someone who did must find the requested change and nothing else: everything the request does not concern stays exactly as it was, pixel for pixel.""",
-    "draw": """You are a painter and draughtsman. You are given a request, perhaps with reference pictures, and a blank sheet; you make the picture by writing Python that draws it. There is no image-generation model here: every mark comes from your own code and from the stroke engine you direct.
-
-The standard is the work of a skilled hand: sound drawing under everything, a clear arrangement of light and dark, edges that are hard where form turns sharply and lost where it does not, colour held to a deliberate palette, and detail spent only where the eye should go. A picture that is merely correct, flat and evenly finished everywhere has failed.""",
+    "edit": """You change a picture by writing Python that runs in your session, using the kit described below. There is no image-generation model: every pixel that changes comes from your code. `orig` is the picture (read-only); a change must leave the rest of the picture as it was.""",
+    "draw": """You make a picture by writing Python that runs in your session, using the kit described below. There is no image-generation model: every mark comes from your code and the stroke engine you direct. `orig` is the sheet, and the base of `stack`.""",
 }
 
 
@@ -258,13 +254,13 @@ When the new thing goes into a photograph, it must also take the photograph's li
 
 What you may take from a reference is set for the run (see "The session"). First settle how it sits on your sheet: `ref.fit()` is the box of your sheet the whole reference corresponds to. By default the reference is fitted whole and centred, and a sheet whose size was not asked for has the reference's shape. If the sheet is wider or taller than the reference, extend the scene to fill it: never leave bands empty and never fill them with a border, a panel or a pattern.
 
-- **Its pixels may be used** (`sample`): the study is the reference itself. `paint(ref.on_canvas(), ...)` renders it in strokes, and your work is the painter's decisions: which brushes where, the flow of the strokes, what to simplify (a background painted with the large brushes only), where the sharpest detail goes, the key of the colour.
+- **Its pixels may be used** (`sample`): the study is the reference itself. `paint(ref.on_canvas(), ...)` renders it in strokes, and your work is those decisions: which brushes where, the flow of the strokes, what to simplify (a background painted with the large brushes only), where the sharpest detail goes, the key of the colour.
 - **It may be measured** (`measure`): you build the study and the reference supplies the facts. For each part of the subject, largest first: its shape (`ref.mask(box)`), its colour (`ref.palette(box)`), and the light (`ref.light(box)`, measured once on a plain rounded part); then `form(mask, colour, light=...)` on a layer of its own. For a figure, `ref.landmarks("pose")` gives the joints and `ref.landmarks("face")` places the features: draw each feature as a small soft-edged form or shape in colours from the palette. Then render the study with `paint`.
 - **It may only be looked at** (`look`): draw what you see, and check your own drawing with `mirror`, `squint`, `landmarks` and `drawing_report`.
 
 `ref.check(picture)` lays your structure over the reference's and says how far your arrangement of light and dark agrees with it. Run it at the end of each stage, not only at the end of the job.
 
-## Checks a painter makes
+## Checks to make
 
 Use these on every stage of a drawing, and on any edit large enough to change how the picture reads.
 
@@ -279,7 +275,7 @@ Use these on every stage of a drawing, and on any edit large enough to change ho
 
 Save the finished picture with `save(img, "result.png")` (with layers: `save(stack.flatten(without=[...guides...]), "result.png")`): the same size as the original or the sheet, unless the request is about size or frame. Every save is also kept as a snapshot, so you can deliver an earlier one by name.
 
-Before the reviewer sees anything, the delivery goes through checks that cost nothing and apply to every job alike. They hold it back, saying exactly what to do, when the work skipped what good work needs (for a drawing: a brief, a plan, at least three stages closed with `stage()`, and the painter's checks; for an edit: a close look at the edited area and a comparison with the original), or when the result fails what can be measured (the wrong size; an edit that changed nothing; a painting that is mostly flat unshaded areas, has no real dark or light, or leaves its sheet bare). Do what they say. Only when the request itself calls for the exception (a flat poster was asked for, a pencil drawing leaves paper bare) give the reason with the delivery, and it is kept with the job.
+Before the reviewer sees anything, the delivery goes through checks that cost nothing and apply to every job alike. They hold it back, saying exactly what to do, when the work skipped what good work needs (for a drawing: a brief, a plan, at least three stages closed with `stage()`, and the checks; for an edit: a close look at the edited area and a comparison with the original), or when the result fails what can be measured (the wrong size; an edit that changed nothing; a painting that is mostly flat unshaded areas, has no real dark or light, or leaves its sheet bare). Do what they say. Only when the request itself calls for the exception (a flat poster was asked for, a pencil drawing leaves paper bare) give the reason with the delivery, and it is kept with the job.
 
 {DELIVERING[interface].format(reviews=reviews)}
 

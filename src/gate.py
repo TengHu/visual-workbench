@@ -37,7 +37,7 @@ def process(mode: str, st: dict) -> list[str]:
         if len(st.get("stages") or []) < 3:
             out.append(f"Only {len(st.get('stages') or [])} stage(s) were closed with stage(). A picture is built and judged in stages (at least: big shapes, light and dark, rendering); a picture made in one go is not accepted.")
         if not any(calls.get(c) for c in CHECKS):
-            out.append("None of the painter's checks was used (squint, tones, mirror, drawing_report, ref.check). Use them on the picture and act on what they show.")
+            out.append("None of the checks was used (squint, tones, mirror, drawing_report, ref.check). Use them on the picture and act on what they show.")
     else:
         if not calls.get("zoom"):
             out.append("The picture was never looked at close up. Zoom into the edited area and along its border (show(img, box=...) or compare(orig, img, box=...)) and fix what shows.")

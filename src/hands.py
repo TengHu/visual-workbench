@@ -27,7 +27,7 @@ SOCK = ".vw.sock"
 
 SELF_REVIEW = """No independent reviewer is set for this job, so review it yourself: above are the result's measurements and check views. Open each view.
 
-Look at it as if someone else had made it and you had to find what is wrong with it. Go through the manual's lists ("What gives an edit away", "Checks a painter makes"). Then read the request once more, word by word: is every part of it done?
+Look at it as if someone else had made it and you had to find what is wrong with it. Go through the manual's lists ("What gives an edit away", "Checks to make"). Then read the request once more, word by word: is every part of it done?
 
 If you find anything, fix it, save, and run finish again. If it truly holds up, run finish again now to deliver."""
 
