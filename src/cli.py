@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> None:
               ref_level=a.reference or ("sample" if has_plate else "measure"), out=out,
               rounds=a.rounds or 36, effort=a.effort, max_tokens=a.max_tokens or 60000,
               max_usd=a.max_usd, coords=coords, sam=sam, max_side=a.max_side, seconds=a.timeout, review=review, critic_passes=a.critic_passes)
-    print(("working on " + image) if has_plate else f"on a blank {size[0]}x{size[1]} sheet" + (" (the shape of the reference)" if a.ref and not a.size else ""))
+    print(("working on " + image) if has_plate else f"on an empty plate ({size[0]}x{size[1]})" + (" (the shape of the reference)" if a.ref and not a.size else ""))
     print(f"reviewer: {('on, ' + critic_model.id) if review and critic_model else 'on, self-review only' if review else 'off'}")
     print(f"watch it: open {out / 'index.html'}")
     run.go()
