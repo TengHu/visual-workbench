@@ -218,7 +218,7 @@ OVERVIEW = """
   <div class='arrow'>⇄</div>
   <div class='col'>
     <div class='box'><b>The model</b> <code>src/openrouter.py</code><br>Gemini 4 Argon (or any OpenRouter model). Two tools: <code>python(code)</code> and <code>finish(file)</code></div>
-    <div class='box'><b>The sandboxed session</b> <code>src/session.py</code>, <code>src/worker.py</code><br>a persistent Python, like a notebook, with no network and no access outside the run folder. Holds <code>orig</code> and the kit</div>
+    <div class='box'><b>The sandboxed session</b> <code>src/session.py</code>, <code>src/worker.py</code><br>a persistent Python, like a notebook, with no network and no access outside the run folder. Holds <code>plate</code> and the kit</div>
     <div class='box'><b>The kit</b> <code>src/kit/</code><br>SAM 2.1 selection, PatchMatch fill, Poisson blending, recolour, a stroke engine, layers and stages, landmarks, edit checks</div>
     <div class='box'><b>The reviewer</b> <code>src/critic.py</code><br>a fresh conversation that sees only the request, the original and the result; answers deliver or fix</div>
   </div>

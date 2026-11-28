@@ -55,7 +55,7 @@ REF_LEVEL = {
     "sample": "You may look at a reference, measure it, and use its pixels (`ref.picture`, `ref.on_canvas()`).",
 }
 
-INTRO = """You work on a plate: the picture that came with the request, or a blank sheet if none was given. You change the plate by writing Python that runs in your session, using the kit described below. There is no image-generation model: every changed pixel comes from your code."""
+INTRO = """You work on a plate: the picture that came with the request, or an empty plate if none was given. You change the plate by writing Python that runs in your session, using the kit described below. There is no image-generation model: every changed pixel comes from your code."""
 
 
 HOW = {
@@ -70,7 +70,7 @@ You have {rounds} rounds. Each of your replies is one round, and one reply may m
 
     {vw} py {run} step.py       run a file of Python in the session
     {vw} py {run} - <<'EOF'     ... or code from standard input
-    show(orig, "the picture")
+    show(plate, "the picture")
     EOF
     {vw} finish {run}           deliver result.png (the first call brings a review instead; see "Delivering")
     {vw} finish {run} --summary "what was done, and what could not be done well"
@@ -99,8 +99,8 @@ def build(*, coords: str, rounds: int, sam: bool, seconds: int, max_views: int, 
         if sam
         else "`select_object` uses a colour graph cut: it works when the thing differs in colour or brightness from what is around it, and needs your fg/bg points when it does not."
     )
-    sheet = "`orig` is the plate, read-only; `W` and `H` are its width and height. It is also the file `input.png`. It is blank if no picture came with the request."
-    ref_text = "" if not refs else f"\n\n`refs` holds the {refs} reference picture{'s' if refs > 1 else ''} that came with the request; `ref` is the first (`refs[0]`). {REF_LEVEL[ref_level]} `ref.fit()` is the box of your plate that the whole reference corresponds to; by default the reference is fitted whole and centred, and a blank sheet whose size was not given has the reference's shape."
+    sheet = "`plate` is read-only; `W` and `H` are its width and height. It is also the file `input.png`. It is empty if no picture came with the request."
+    ref_text = "" if not refs else f"\n\n`refs` holds the {refs} reference picture{'s' if refs > 1 else ''} that came with the request; `ref` is the first (`refs[0]`). {REF_LEVEL[ref_level]} `ref.fit()` is the box of your plate that the whole reference corresponds to; by default the reference is fitted whole and centred, and a plate whose size was not given has the reference's shape."
     how = HOW[interface].format(seconds=seconds, rounds=rounds, run=run, vw=vw)
     seeing = SEEING[interface].format(max_views=max_views)
     return f"""{INTRO}
@@ -148,7 +148,7 @@ A position is only as exact as the view it is read from: on a reduced view, one 
 - layer: float32 `(h, w, 4)`, a picture with straight alpha.
 - mask: float32 `(H, W)`, 1 selected, 0 not, soft in between.
 
-`orig` is read-only; `img = orig.copy()` gives a picture to change. Variables keep their values between calls.
+`plate` is read-only; `img = plate.copy()` gives a picture to change. Variables keep their values between calls.
 
 ## Layers, stages and records
 

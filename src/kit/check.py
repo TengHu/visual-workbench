@@ -111,7 +111,7 @@ def edit_report(before, after, quiet=False):
 def drawing_report(img, paper="#f6f2e9", quiet=False):
     """Numbers on a picture's coverage and tones. Prints, and returns a dict with:
 
-    bare    share of the picture that is still the colour `paper` (the blank sheet's colour)
+    bare    share of the picture that is still the colour `paper` (the empty plate's colour)
     flat    share of the picture lying in areas of one unvarying tone, and `flat_boxes`, the largest such areas
     tones   the darkest and lightest tones used (0 black, 1 white) and the shares of dark, middle and light"""
     a = np.asarray(img, np.float32)[..., :3]

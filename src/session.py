@@ -113,7 +113,7 @@ class Session:
             self.close()
             self.restarts += 1
             self.start()
-            return {"stdout": "", "error": f"{why} The session has been restarted: variables are gone (re-create what you need; `orig`, W, H and the kit are back), files you saved are still there.", "views": [], "dropped_views": 0, "saved": [], "seconds": limit, "restarted": True}
+            return {"stdout": "", "error": f"{why} The session has been restarted: variables are gone (re-create what you need; `plate`, W, H and the kit are back), files you saved are still there.", "views": [], "dropped_views": 0, "saved": [], "seconds": limit, "restarted": True}
         return reply
 
     def inventory(self) -> str:

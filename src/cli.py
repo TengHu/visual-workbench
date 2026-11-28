@@ -1,7 +1,7 @@
 """The one command, `vw`. What it does follows from what it is given:
 
     vw photo.jpg "make the car dark green"            a picture given: a model edits it
-    vw "a heron in reeds at dawn, pen and ink"         no picture: a model draws on a blank sheet
+    vw "a heron in reeds at dawn, pen and ink"         no picture: a model works on an empty plate
     vw "paint a study of this in oils" --ref photo.jpg draw, working from a reference
     vw open [photo.jpg] "REQUEST"                      hands-on: you (an agent) do the work; then vw py, vw finish
     vw runs                                            the latest runs
@@ -70,7 +70,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("inputs", nargs="+", metavar="[PICTURE] REQUEST", help="the picture to edit (optional) and what you want, in your own words (sent to the model word for word)")
     p.add_argument("--ref", action="append", default=[], help="a reference picture the request refers to; repeatable")
     p.add_argument("--reference", choices=["look", "measure", "sample"], help="what the model may do with references: look at them only; also measure them (outlines, landmarks, palette, coarse tones); or also use their pixels (default sample when editing, measure when drawing)")
-    p.add_argument("--size", help="the blank sheet when drawing, WIDTHxHEIGHT (default: the shape of the first reference at about 1.9 megapixels; 1600x1200 without one)")
+    p.add_argument("--size", help="the plate when there is no picture, WIDTHxHEIGHT (default: the shape of the first reference at about 1.9 megapixels; 1600x1200 without one)")
     p.add_argument("--model", default="argon", help="'argon' (TARGET_MODEL from the repo's .env) or any OpenRouter model id")
     p.add_argument("--reviewer", choices=["on", "off"], default="on", help="on: every finish is checked by an independent reviewer before delivery; off: no reviewer model (the free delivery checks still run) (default on)")
     p.add_argument("--critic", default="same", help="who reviews when --reviewer is on: 'same' (the same model, fresh conversation), an OpenRouter model id, or 'none' (the model reviews itself, once)")
@@ -144,7 +144,7 @@ def sort_inputs(p, inputs: list[str], refs: list[str]) -> tuple[str | None, str]
 
 
 def sheet_size(p, size: str | None, refs: list[str]) -> tuple[int, int]:
-    """The blank sheet: as asked for; else the shape of the first reference (a study of an upright picture on a
+    """The plate: as asked for; else the shape of the first reference (a study of an upright picture on a
     wide sheet leaves empty bands at the sides); else 1600x1200."""
     if size:
         m = re.fullmatch(r"(\d+)x(\d+)", size)

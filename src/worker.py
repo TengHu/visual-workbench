@@ -66,12 +66,12 @@ def namespace():
             core._state["calls"], core._state["brief"] = _p.get("calls", {}), _p.get("brief", "")
         if os.path.exists("plan.json") and not core._state.get("plan"):
             core._state["plan"] = _json.load(open("plan.json"))
-        orig = kit.load("input.png")
-        orig.setflags(write=False)
-        ns["orig"] = orig
-        ns["H"], ns["W"] = orig.shape[:2]
-        core._state["size"] = orig.shape[:2]
-        ns["stack"] = kit.Stack(orig)
+        plate = kit.load("input.png")
+        plate.setflags(write=False)
+        ns["plate"] = plate
+        ns["H"], ns["W"] = plate.shape[:2]
+        core._state["size"] = plate.shape[:2]
+        ns["stack"] = kit.Stack(plate)
         level = os.environ.get("KIT_REF_LEVEL", "sample")
         ns["refs"] = [kit.Ref(kit.load(f), level, f"refs[{i}]", (ns["W"], ns["H"])) for i, f in enumerate(sorted(glob.glob(".refs/*")))]
         if ns["refs"]:
@@ -87,7 +87,7 @@ def inventory(ns):
 
     import kit
     import kit.core as core
-    skip = set(kit.__all__) | {"np", "cv2", "PIL", "Image", "ImageDraw", "ImageFilter", "ImageFont", "scipy", "ndi", "skimage", "skia", "kit", "orig", "H", "W", "refs", "ref"}
+    skip = set(kit.__all__) | {"np", "cv2", "PIL", "Image", "ImageDraw", "ImageFilter", "ImageFont", "scipy", "ndi", "skimage", "skia", "kit", "plate", "H", "W", "refs", "ref"}
     out = []
     for k, v in ns.items():
         if k.startswith("_") or k in skip or isinstance(v, (types.ModuleType, core.View)):
