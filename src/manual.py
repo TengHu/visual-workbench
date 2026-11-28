@@ -59,7 +59,7 @@ INTRO = """You work on a plate: the picture that came with the request, or a bla
 
 
 HOW = {
-    "tools": """You have two tools.
+    "tools": """Your tools:
 
 `python(code)` runs code in your Python session. The session stays alive for the whole job, like a notebook: variables, imports and functions you define are still there in the next call. It answers with what the code printed, the value of its last expression, or the error. One call may run for up to {seconds} seconds.
 
