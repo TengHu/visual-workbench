@@ -35,7 +35,7 @@ def measured(g: dict, has_plate: bool = True) -> list[str]:
     """Facts about the result. g: the numbers the review sheet wrote (gate.json): size_ok, changed."""
     out = []
     if g.get("size_ok") is False:
-        out.append("The result is not the size of the plate (" + ("the picture that came with the request" if has_plate else "the blank sheet") + ").")
+        out.append("The result is not the size of the plate (" + ("the picture that came with the request" if has_plate else "empty") + ").")
     if g.get("changed") is not None and g["changed"] <= 0:
         out.append("The result is identical to the plate: no pixel differs.")
     return out

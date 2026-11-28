@@ -106,7 +106,7 @@ def call(work: Path, code: str, private: bool = False) -> dict:
     _server(work)
     reply = _ask(work, {"code": code, "private": private}, cfg["timeout"] + 240)
     if cfg.get("boot") and reply.get("boot") != cfg["boot"] and not private:
-        reply["stdout"] = "(The session was not running any more and has been started again: variables from earlier steps are gone; `orig`, W, H, `refs` and the kit are back, and every file you saved is still there. Re-create what you need.)\n" + (reply.get("stdout") or "")
+        reply["stdout"] = "(The session was not running any more and has been started again: variables from earlier steps are gone; `plate`, W, H, `refs` and the kit are back, and every file you saved is still there. Re-create what you need.)\n" + (reply.get("stdout") or "")
     if reply.get("boot") != cfg.get("boot") or (reply.get("stages") and not private):
         cfg = _config(work)
         cfg["boot"] = reply.get("boot")
@@ -171,7 +171,7 @@ def open_(argv: list[str]) -> None:
     p.add_argument("inputs", nargs="+", metavar="[PICTURE] REQUEST", help="the picture to edit (optional) and the request, in quotes")
     p.add_argument("--ref", action="append", default=[], help="a reference picture the request refers to; repeatable")
     p.add_argument("--reference", choices=["look", "measure", "sample"], help="what may be taken from references (default sample when editing, measure when drawing)")
-    p.add_argument("--size", help="the blank sheet when drawing, WIDTHxHEIGHT (default: the shape of the first reference; 1600x1200 without one)")
+    p.add_argument("--size", help="the plate when there is no picture, WIDTHxHEIGHT (default: the shape of the first reference; 1600x1200 without one)")
     p.add_argument("--coords", choices=["xy", "yx1000"], default="xy", help="how you write positions read off a view: xy (pixels of the view, the default) or yx1000 ([y, x] 0..1000, native to Gemini models)")
     p.add_argument("--critic", default="argon", help="who reviews before delivery: 'argon' or any OpenRouter model id (the request, the plate and the result are sent to it), or 'none' (you compare the result with the request yourself)")
     p.add_argument("--critic-passes", type=int, default=2, help="how many times a delivery may be held back for review (default 2)")
@@ -204,14 +204,14 @@ def open_(argv: list[str]) -> None:
     (work / "system.md").write_text(text)
 
     first = []
-    first += call(work, "show(orig, 'the plate')", private=True)["views"]
+    first += call(work, "show(plate, 'the plate')", private=True)["views"]
     for i in range(len(refs)):
         first += call(work, f"refs[{i}].show('reference refs[{i}]')", private=True)["views"]
     cfg = _config(work)
     _pages(out)
     print(f"Job opened: {out}\n")
     print(f"The request: {request}\n")
-    print(f"Your plate is {w}x{h}; it is `orig` and `input.png` in the session" + (" — the picture that came with the request." if has_plate else " — a blank sheet." + (" It has the shape of the reference." if refs and not a.size else "")) + (" " + " ".join(notes) if notes else ""))
+    print(f"Your plate is {w}x{h}; it is `plate` and `input.png` in the session" + (" — the picture that came with the request." if has_plate else " — empty." + (" It has the shape of the reference." if refs and not a.size else "")) + (" " + " ".join(notes) if notes else ""))
     if refs:
         print(f"{len(refs)} reference picture{'s' if len(refs) > 1 else ''}: `refs` in the session; you may {ref_level} " + ("at them only." if ref_level == "look" else "them." if ref_level == "measure" else "them (use their pixels)."))
     print("Reviewer before delivery: " + ("you (--critic none)." if cfg["critic"] == "none" else f"{cfg['critic']}, independent (the request, the plate and the result are sent to it)."))

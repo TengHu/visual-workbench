@@ -19,7 +19,7 @@ _MODES = ("normal", "multiply", "screen")
 
 class Stack:
     """A pile of named layers over a base picture. `stack` is one, ready in the session, with the picture
-    (or the blank sheet) as its base.
+    (or an empty plate) as its base.
 
         stack.put("line", layer)                 add a layer on top, or replace the one of that name where it is
         stack.put("shade", layer, mode="multiply", opacity=0.8)     darkens what is under it (shadows)

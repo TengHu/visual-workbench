@@ -32,24 +32,24 @@ PAPER = (246, 242, 233)
 REVIEW_CODE = r"""
 _r = load({file!r})
 _changed = None
-if _r.shape != orig.shape:
+if _r.shape != plate.shape:
     print(f"The file is {{_r.shape[1]}}x{{_r.shape[0]}}; the plate is {{W}}x{{H}}.")
     show(_r, "the result, whole")
 else:
-    _c = changes(orig, _r)
+    _c = changes(plate, _r)
     _changed = float(_c["changed"])
     if {plate!r} and _changed > 0:
-        edit_report(orig, _r)
+        edit_report(plate, _r)
     show(_r, "the result, whole")
     for _i, (_x0, _y0, _x1, _y1) in enumerate([a for a in _c["areas"] if a][:3]):
         _pad = max(24, int(0.25 * max(_x1 - _x0, _y1 - _y0)))
         _box = (max(0, _x0 - _pad), max(0, _y0 - _pad), min(W, _x1 + _pad), min(H, _y1 + _pad))
         if {plate!r}:
-            compare(orig, _r, f"changed area {{_i + 1}}: plate | result", box=_box, labels=("plate", "result"))
+            compare(plate, _r, f"changed area {{_i + 1}}: plate | result", box=_box, labels=("plate", "result"))
         else:
             show(_r, f"changed area {{_i + 1}}", box=_box)
     if {plate!r} and _c["box"]:
-        show(change_map(orig, _r), "where pixels changed (black = unchanged)")
+        show(change_map(plate, _r), "where pixels changed (black = unchanged)")
     _h, _w = _r.shape[:2]
     _e = np.abs(cv2.Laplacian(cv2.GaussianBlur(_r.mean(-1), (0, 0), 2), cv2.CV_32F))
     _s = cv2.blur(_e, (max(8, _w // 3), max(8, _h // 3)))
@@ -58,7 +58,7 @@ else:
 if refs and refs[0].level != "look":
     refs[0].check(_r)
 import json as _json
-_json.dump({{"size_ok": bool(_r.shape == orig.shape), "changed": _changed}}, open("gate.json", "w"))
+_json.dump({{"size_ok": bool(_r.shape == plate.shape), "changed": _changed}}, open("gate.json", "w"))
 """
 
 SELF_REVIEW = """Before this is delivered: above is the result with views and measurements. There is no independent reviewer for this run.
@@ -81,7 +81,7 @@ def prepare(src: str, dest: Path, max_side: int) -> tuple[int, int, bool]:
 
 
 def set_up(out: Path, mode: str, image: str | None, size: tuple[int, int], refs: list[str], ref_level: str, max_side: int) -> tuple[int, int, list[str], list[str]]:
-    """Lay out a run's folder: the picture (or the blank sheet) as work/input.png, and the references.
+    """Lay out a run's folder: the picture (or an empty plate) as work/input.png, and the references.
     Returns (width, height, notes for whoever does the work, the references' file names)."""
     work = out / "work"
     work.mkdir(parents=True, exist_ok=True)
@@ -196,9 +196,9 @@ class Run:
     def go(self) -> Path | None:
         print(f"{self.mode} · {self.model.id} · effort {self.effort} · {self.w}x{self.h} · up to {self.rounds} rounds · cap ${self.max_usd}\n{self.dir}\n")
         intro = [{"type": "text", "text": f"# The request\n\n{self.request}"}]
-        first = self.session.run("show(orig, 'the plate')", private=True)
+        first = self.session.run("show(plate, 'the plate')", private=True)
         intro += self._views_parts(first["views"])
-        intro.append({"type": "text", "text": f"Your plate is {self.w}x{self.h}; it is `orig` and `input.png` in your session" + (" — the picture that came with the request." if self.has_plate else " — a blank sheet.") + (" " + " ".join(self.notes) if self.notes else "")})
+        intro.append({"type": "text", "text": f"Your plate is {self.w}x{self.h}; it is `plate` and `input.png` in your session" + (" — the picture that came with the request." if self.has_plate else " — empty.") + (" " + " ".join(self.notes) if self.notes else "")})
         for i, name in enumerate(self.refs):
             r = self.session.run(f"refs[{i}].show('reference refs[{i}]')", private=True)
             intro.append({"type": "text", "text": f"A picture that came with the request, `refs[{i}]` in your session" + (f" (also the file `{name}`)" if self.ref_level == "sample" else "") + ":"})
